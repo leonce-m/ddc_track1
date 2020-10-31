@@ -49,16 +49,17 @@ class VCS(object):
         if len(token) == 0:
             return False
         i, verb = self.find_next_verb(token)
-        if verb:
-            token.pop(i)
-            j, temp = self.find_next_verb(token)
-            if not temp:
-                j = len(token)
-            token.insert(i, verb)
-            phrase = " ".join(token[i:j+1])
-            del token[i:j+1]
-            print(phrase)
-            return True
+        if not verb:
+            return False
+        token.pop(i)
+        j, temp = self.find_next_verb(token)
+        if not temp:
+            j = len(token)
+        token.insert(i, verb)
+        phrase = " ".join(token[i:j+1])
+        del token[i:j+1]
+        print(phrase)
+        return True
 
     def handle_command(self, command):
         token = command.split()
