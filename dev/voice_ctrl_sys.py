@@ -1,39 +1,41 @@
 def foo1(verb, nouns):
-    print(verb + nouns.join(" ") + ": foo1")
+    return verb + nouns.join(" ") + ": foo1"
 
 
 def foo2(verb, nouns):
-    print(verb + nouns.join(" ") + ": foo2")
+    return verb + nouns.join(" ") + ": foo2"
 
 
 def foo3(verb, nouns):
-    print(verb + nouns.join(" ") + ": foo3")
+    return verb + nouns.join(" ") + ": foo3"
 
 
 def foo4(verb, nouns):
-    print(verb + nouns.join(" ") + ": foo4")
+    return verb + nouns.join(" ") + ": foo4"
 
 
 class VCS(object):
     def __init__(self, call_sign):
         self.call_sign = call_sign
         self.verbs = [
-            ({"climb", "descend", "maintain"},  "ALT", foo1),
-            ({"turn"},                          "DIR", foo2),
-            ({"hold"},                          "LOC", foo3),
-            ({"direct"},                        "LOC", foo4)
+            ({"climb", "descend", "maintain"}, "ALT", foo1),
+            ({"turn"}, "DIR", foo2),
+            ({"hold"}, "LOC", foo3),
+            ({"direct"}, "LOC", foo4)
         ]
-        self.nouns = [
-            {"ALT": {"FL [0-9]", "[0-9]+ ft"}},
-            {"DIR": {"heading [0-9]"}},
-            {"LOC": {"Ingolstadt Main Station", "MIQ", "OTT VOR", "WLD VOR"}}
-        ]
+        self.nouns = {
+            "ALT": {"FL [0-9]", "[0-9]+ ft"},
+            "DIR": {"heading [0-9]"},
+            "LOC": {"Ingolstadt Main Station", "MIQ", "OTT VOR", "WLD VOR"}
+        }
 
-    def find_first_of(self, token, regex_list):
+    def find_next_verb(self, token):
         for i, t in enumerate(token):
-            for r in regex_list:
-                if r == t:
-                    return i, t
+            for v_type in self.verbs:
+                for r in v_type[0]:
+                    if r == t:
+                        return i, t
+        return 0, 0
 
     def handle_id(self, token):
         if len(token) > 1 and token[1].isdigit():
@@ -46,12 +48,19 @@ class VCS(object):
     def handle_phrase(self, token):
         if len(token) == 0:
             return False
-        i, t = self.find_first_of(token, self.vcs_dialect[0][0])
-        print(i, t)
-        token.pop(i)
-        return t
+        i, verb = self.find_next_verb(token)
+        if verb:
+            token.pop(i)
+            j, temp = self.find_next_verb(token)
+            if not temp:
+                j = len(token)
+            token.insert(i, verb)
+            phrase = " ".join(token[i:j+1])
+            del token[i:j+1]
+            print(phrase)
+            return True
 
-    def consume_command(self, command):
+    def handle_command(self, command):
         token = command.split()
         if not self.handle_id(token):
             print(f"Call sign '{token[0]}' not recognized")
@@ -69,7 +78,7 @@ def main():
         if not command:
             break
         # print(command)
-        vcs.consume_command(command)
+        vcs.handle_command(command)
 
     return 0
 
