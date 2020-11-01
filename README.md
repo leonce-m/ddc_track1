@@ -62,7 +62,7 @@ The --scorer argument is optional, and represents an external language model to 
 
 #### mic_vad streaming.py
 ```
-usage: mic_vad_streaming.py [-h] [-v VAD_AGGRESSIVENESS] [--nospinner]
+usage: python3 mic_vad_streaming.py [-h] [-v VAD_AGGRESSIVENESS] [--nospinner]
                                [-w SAVEWAV] [-f FILE] -m MODEL [-s SCORER]
                                [-d DEVICE] [-r RATE]
    
