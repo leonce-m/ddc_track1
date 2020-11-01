@@ -56,7 +56,7 @@ pip3 install -r dev/requirements.txt
 ## Usage
 #### deepspeech
 ```
-  deepspeech --model deepspeech-0.8.1-models.pbmm --scorer deepspeech-0.8.1-models.scorer --audio my_audio_file.wav
+  deepspeech --model deepspeech-0.8.2-models.pbmm --scorer deepspeech-0.8.2-models.scorer --audio my_audio_file.wav
 ```
 The --scorer argument is optional, and represents an external language model to be used when transcribing the audio.
 
