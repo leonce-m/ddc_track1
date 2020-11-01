@@ -40,22 +40,17 @@ You need to ask for permissions and command take-off, flight, changes during the
 * Live radio module to communicate
 
 ## Installation
-If `pip` is not installed:
-```
-apt install python3-pip
-```
-```
-pip3 install deepspeech
-```
+Clone the repo (duuh):
 ```
 git clone https://github.com/leonce-m/ddc_track1/
 ```
+Uses portaudio for microphone access, so on Linux, you may need to install its header files to compile the `pyaudio` package and install PyAudio using APT instead and `pip` if it's not installed:
+```
+sudo apt install python3-pyaudio portaudio19-dev python3-pip
+```
+Then install the rest of the requirements:
 ```
 pip3 install -r dev/requirements.txt
-```
-Uses portaudio for microphone access, so on Linux, you may need to install its header files to compile the `pyaudio` package:
-```
-apt install portaudio19-dev
 ```
 
 ## Usage
