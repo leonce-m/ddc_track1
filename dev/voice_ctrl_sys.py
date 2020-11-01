@@ -54,8 +54,8 @@ class VIO(object):
         if not temp:
             j = len(token)
         token.insert(i, verb)
-        phrase = " ".join(token[i:j+1])
-        del token[i:j+1]
+        phrase = " ".join(token[0:j+1])
+        del token[0:j+1]
         print(phrase)
         return True
 
@@ -99,7 +99,7 @@ def main(ARGS):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
-    parser.add_argument('-vv','--verbose', type=bool, default=False,
+    parser.add_argument('-vv', '--verbose', type=bool, default=False,
                         help="Enable verbose console output for debug purposes")
     ARGS = parser.parse_args()
     main(ARGS)
