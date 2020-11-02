@@ -14,20 +14,33 @@ def foo4(verb, nouns):
     return verb + nouns.join(" ") + ": foo4"
 
 
-class VCS(object):
-    def __init__(self, call_sign):
+class VioComError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
+
+class VIO(object):
+    VIO_GRAMMAR_VERBS = [
+        ({"climb", "descend", "maintain"}, "ALT", foo1),
+        ({"turn"}, "DIR", foo2),
+        ({"hold"}, "LOC", foo3),
+        ({"direct"}, "LOC", foo4)
+    ]
+    VIO_GRAMMAR_NOUNS = {
+        "ALT": {"FL [0-9]", "[0-9]+ ft"},
+        "DIR": {"heading [0-9]"},
+        "LOC": {"Ingolstadt Main Station", "MIQ", "OTT VOR", "WLD VOR"}
+    }
+
+    def __init__(self, call_sign, verbose):
         self.call_sign = call_sign
-        self.verbs = [
-            ({"climb", "descend", "maintain"}, "ALT", foo1),
-            ({"turn"}, "DIR", foo2),
-            ({"hold"}, "LOC", foo3),
-            ({"direct"}, "LOC", foo4)
-        ]
-        self.nouns = {
-            "ALT": {"FL [0-9]", "[0-9]+ ft"},
-            "DIR": {"heading [0-9]"},
-            "LOC": {"Ingolstadt Main Station", "MIQ", "OTT VOR", "WLD VOR"}
-        }
+        self.verbose = verbose
+        self.verbs = self.VIO_GRAMMAR_VERBS
+        self.nouns = self.VIO_GRAMMAR_NOUNS
+        self.phrase = ""
 
     def find_next_verb(self, token):
         for i, t in enumerate(token):
@@ -37,43 +50,65 @@ class VCS(object):
                         return i, t
         return 0, 0
 
-    def handle_id(self, token):
-        if len(token) > 1 and token[1].isdigit():
-            token[0] = token[0] + token[1]
-            token.remove(token[1])
-        if token[0] == self.call_sign:
-            token.remove(token[0])
-            return True
+    def handle_response(self, phrase):
+        self.phrase += " " + phrase
 
-    def handle_phrase(self, token):
+    def handle_response_queue(self):
+        if self.verbose:
+            print(f'{self.call_sign},{self.phrase}.')
+        self.phrase = ""
+
+    def handle_phrase(self, phrase):
+        return 0
+
+    def handle_phrase_queue(self, token):
         if len(token) == 0:
-            return False
+            return
         i, verb = self.find_next_verb(token)
         if not verb:
-            return False
+            raise VioComError("unable")
         token.pop(i)
         j, temp = self.find_next_verb(token)
         if not temp:
             j = len(token)
         token.insert(i, verb)
-        phrase = " ".join(token[i:j+1])
-        del token[i:j+1]
-        print(phrase)
-        return True
+        phrase = " ".join(token[0:j+1])
+        del token[0:j+1]
+        self.handle_response(phrase)
+        self.handle_phrase(phrase)
+        self.handle_phrase_queue(token)
+
+    def handle_id(self, token):
+        if len(token) > 1 and token[1].isdigit():
+            token[0] += token[1]
+            token.remove(token[1])
+        if token[0] != self.call_sign:
+            raise VioComError(f"Call sign '{token[0]}' not recognized")
+        token.remove(token[0])
 
     def handle_command(self, command):
         token = command.split()
-        if not self.handle_id(token):
-            print(f"Call sign '{token[0]}' not recognized")
+        try:
+            self.handle_id(token)
+        except VioComError as e:
+            if self.verbose:
+                print(e)
         else:
-            while len(token) > 0:
-                if not self.handle_phrase(token):
-                    print(f"Command '{token[0]}' not recognized or not executable")
-                    break
+            try:
+                self.handle_phrase_queue(token)
+            except VioComError as e:
+                self.handle_response(e.message)
+            finally:
+                self.handle_response_queue()
 
 
-def main():
-    vcs = VCS("CityAirbus1234")
+class VCS(VIO):
+    def __init__(self, call_sign, verbose=False):
+        super().__init__(call_sign, verbose)
+
+
+def main(ARGS):
+    vcs = VCS(ARGS.call_sign, ARGS.verbose)
     while True:
         command = input()
         if not command:
@@ -85,4 +120,11 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
+    parser.add_argument('-s', '--call_sign', default="CityAirbus1234",
+                        help="Set custom call sign")
+    parser.add_argument('-vv', '--verbose', action='store_true',
+                        help="Enable verbose console output for debug purposes")
+    ARGS = parser.parse_args()
+    main(ARGS)

@@ -40,34 +40,29 @@ You need to ask for permissions and command take-off, flight, changes during the
 * Live radio module to communicate
 
 ## Installation
-If `pip` is not installed:
-```
-apt install python3-pip
-```
-```
-pip3 install deepspeech
-```
+Clone the repo (duuh):
 ```
 git clone https://github.com/leonce-m/ddc_track1/
 ```
+Uses portaudio for microphone access, so on Linux, you may need to install its header files to compile the `pyaudio` package and install PyAudio using APT instead and `pip` if it's not installed:
+```
+sudo apt install python3-pyaudio portaudio19-dev python3-pip
+```
+Then install the rest of the requirements:
 ```
 pip3 install -r dev/requirements.txt
-```
-Uses portaudio for microphone access, so on Linux, you may need to install its header files to compile the `pyaudio` package:
-```
-apt install portaudio19-dev
 ```
 
 ## Usage
 #### deepspeech
 ```
-  deepspeech --model deepspeech-0.8.1-models.pbmm --scorer deepspeech-0.8.1-models.scorer --audio my_audio_file.wav
+  deepspeech --model deepspeech-0.8.2-models.pbmm --scorer deepspeech-0.8.2-models.scorer --audio my_audio_file.wav
 ```
 The --scorer argument is optional, and represents an external language model to be used when transcribing the audio.
 
 #### mic_vad streaming.py
 ```
-usage: mic_vad_streaming.py [-h] [-v VAD_AGGRESSIVENESS] [--nospinner]
+usage: python3 mic_vad_streaming.py [-h] [-v VAD_AGGRESSIVENESS] [--nospinner]
                                [-w SAVEWAV] [-f FILE] -m MODEL [-s SCORER]
                                [-d DEVICE] [-r RATE]
    
