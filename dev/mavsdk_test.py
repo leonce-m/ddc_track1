@@ -28,7 +28,7 @@ class VCS:
 
     async def main_loop(self):
         await self.handle_state()
-        command = await make_async(input())
+        command = await make_async(input)
         await self.handle_command(command)
         await asyncio.sleep(1)
 
@@ -41,8 +41,7 @@ class VCS:
 
 async def make_async(sync_function):
     executor = concurrent.futures.ThreadPoolExecutor()
-    value = await asyncio.get_event_loop().run_in_executor(executor, sync_function)
-    print(value)
+    return await asyncio.get_event_loop().run_in_executor(executor, sync_function)
 
 
 if __name__ == "__main__":
