@@ -7,6 +7,11 @@ def lat_lon(position):
     coords = position.latitude_deg, position.longitude_deg
     return coords
 
+async def get_home_pos(drone):
+    async for home in drone.telemetry.home():
+        if home:
+            print(f"Home: {lat_lon(home)}")
+            return home
 
 async def check_dist(drone, init_pos, dist):
     async for pos in drone.telemetry.position():
@@ -29,14 +34,11 @@ async def run():
         if state.is_connected:
             print(f"Drone discovered with UUID: {state.uuid}")
             break
+    home = await get_home_pos(drone)
     print("-- Arming")
     await drone.action.arm()
     print("-- Taking off")
     await drone.action.takeoff()
-    async for home in drone.telemetry.home():
-        if home:
-            print(f"Home: {lat_lon(home)}")
-            break
     await asyncio.sleep(10)
     await drone.offboard.set_velocity_ned(offboard.VelocityNedYaw(0, 0, 0, 0))
     await drone.offboard.start()
