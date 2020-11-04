@@ -1,13 +1,25 @@
 import asyncio
 from mavsdk import System, offboard
+from mavsdk.telemetry import LandedState, Position
 from mavsdk.action import ActionError
 
+def lat_lon(position):
+    coords = position.latitude_deg, position.longitude_deg
+    return coords
 
-def check_fence(drone, init_pos, dist):
-    pos = drone.telemetry.position()
-    if any(abs(x+y) > dist for x, y in zip(init_pos, pos)):
-        return True
 
+async def check_dist(drone, init_pos, dist):
+    async for pos in drone.telemetry.position():
+        for x, y in zip(lat_lon(init_pos), lat_lon(pos)):
+            print(f"Distance from home: {abs(x - y)}")
+        if any(abs(x-y) > dist for x, y in zip(lat_lon(init_pos), lat_lon(pos))):
+            return True
+        await asyncio.sleep(1)
+
+async def wait_for(f_condition):
+    while True:
+        if await f_condition:
+            return
 
 async def run():
     drone = System()
@@ -21,16 +33,26 @@ async def run():
     await drone.action.arm()
     print("-- Taking off")
     await drone.action.takeoff()
-    home_pos = drone.telemetry.position()
-    print(home_pos)
-
-    await drone.offboard.set_velocity_ned(offboard.VelocityNedYaw(0.1, 0.1, 0, 0))
-    if check_fence(drone, home_pos, 2):
-        await drone.action.return_to_launch()
-    await asyncio.sleep(5)
-    print("-- Landing")
-    await drone.action.land()
-
+    async for home in drone.telemetry.home():
+        if home:
+            print(f"Home: {lat_lon(home)}")
+            break
+    await asyncio.sleep(10)
+    await drone.offboard.set_velocity_ned(offboard.VelocityNedYaw(0, 0, 0, 0))
+    await drone.offboard.start()
+    v = 5
+    await drone.offboard.set_velocity_ned(offboard.VelocityNedYaw(v, 0, 0, 0))
+    print(f"-- Moving forward at {v} m/s")
+    await asyncio.ensure_future(check_dist(drone, home, 5e-07))
+    await drone.offboard.stop()
+    await drone.action.return_to_launch()
+    print("-- Returning Home")
+    async for landed in drone.telemetry.landed_state():
+        if landed == LandedState.ON_GROUND:
+            print("-- Landed")
+            break
+    await asyncio.sleep(10)
+    await drone.action.disarm()
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()

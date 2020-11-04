@@ -26,7 +26,7 @@ class VCS:
         self.print("Arming drone...")
         await self.drone.action.arm()
 
-    async def main_loop(self):
+    async def run(self):
         await self.handle_state()
         command = await make_async(input)
         await self.handle_command(command)
@@ -47,5 +47,5 @@ async def make_async(sync_function):
 if __name__ == "__main__":
     vcs = VCS(System())
     asyncio.get_event_loop().run_until_complete(vcs.startup())
-    asyncio.ensure_future(vcs.main_loop())
+    asyncio.ensure_future(vcs.run())
     asyncio.get_event_loop().run_forever()
