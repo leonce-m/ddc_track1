@@ -72,13 +72,13 @@ class VCS:
             command, *args = await self.command_queue.get()
             logging.info(f"Calling {command}({args})")
             await command(args)
+        await self.fly_rtb()
 
     async def handle_emergency(self, results):
         logging.info("Attempt to recover from error")
         for emergency in results:
             if isinstance(emergency, Exception):
                 raise emergency
-        self.abort_event.set()
         await self.fly_rtb()
         await self.shutdown(asyncio.get_running_loop())
 
@@ -98,6 +98,7 @@ class VCS:
         msg = context.get("exception", context["message"])
         logging.error(f"Caught exception: {msg}")
         logging.info("Shutting down")
+        self.abort_event.set()
         asyncio.create_task(self.shutdown(loop))
 
     async def shutdown(self, loop, signal=None):
