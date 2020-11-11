@@ -1,4 +1,4 @@
-import logging
+from dev import misc
 
 def foo1(verb, nouns):
     return verb + nouns.join(" ") + ": foo1"
@@ -104,7 +104,15 @@ class Parser(object):
                 self.handle_response_queue()
 
 
-def main(ARGS):
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
+    parser.add_argument('-s', '--call_sign', default="CityAirbus1234",
+                        help="Set custom call sign")
+    ARGS = parser.parse_args()
+
+    misc.config_logger()
+
     vio = Parser(ARGS.call_sign, ARGS.verbose)
     while True:
         command = input()
@@ -112,14 +120,3 @@ def main(ARGS):
             break
         # print(command)
         vio.handle_command(command)
-
-    return 0
-
-
-if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
-    parser.add_argument('-s', '--call_sign', default="CityAirbus1234",
-                        help="Set custom call sign")
-    ARGS = parser.parse_args()
-    main(ARGS)

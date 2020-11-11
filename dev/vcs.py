@@ -6,7 +6,7 @@ import concurrent.futures
 from mavsdk import System
 from mavsdk.telemetry import *
 from concurrent.futures import ThreadPoolExecutor
-from dev import vio
+from dev import vio, misc
 
 class VCS:
     def __init__(self, drone):
@@ -119,17 +119,6 @@ async def make_async(sync_function):
     executor = concurrent.futures.ThreadPoolExecutor()
     return await asyncio.get_event_loop().run_in_executor(executor, sync_function)
 
-def config_logger():
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
-    # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    formatter = logging.Formatter('%(message)s')
-    handler.setFormatter(formatter)
-    root.addHandler(handler)
-
 def main():
     vcs = VCS(System())
     loop = asyncio.get_event_loop()
@@ -146,6 +135,7 @@ def main():
         loop.close()
         logging.info("Successfully shutdown VCS")
 
+
 if __name__ == "__main__":
-    config_logger()
+    misc.config_logger()
     main()
