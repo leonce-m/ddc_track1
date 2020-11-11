@@ -1,3 +1,5 @@
+import logging
+
 def foo1(verb, nouns):
     return verb + nouns.join(" ") + ": foo1"
 
@@ -21,25 +23,26 @@ class VioComError(Exception):
     def __str__(self):
         return self.message
 
-
-class VIO(object):
-    VIO_GRAMMAR_VERBS = [
+class Grammar(object):
+    VERBS = [
         ({"climb", "descend", "maintain"}, "ALT", foo1),
         ({"turn"}, "DIR", foo2),
         ({"hold"}, "LOC", foo3),
         ({"direct"}, "LOC", foo4)
     ]
-    VIO_GRAMMAR_NOUNS = {
+    NOUNS = {
         "ALT": {"FL [0-9]", "[0-9]+ ft"},
         "DIR": {"heading [0-9]"},
         "LOC": {"Ingolstadt Main Station", "MIQ", "OTT VOR", "WLD VOR"}
     }
 
-    def __init__(self, call_sign, verbose):
+class Parser(object):
+
+    def __init__(self, call_sign, verbose=True):
         self.call_sign = call_sign
         self.verbose = verbose
-        self.verbs = self.VIO_GRAMMAR_VERBS
-        self.nouns = self.VIO_GRAMMAR_NOUNS
+        self.verbs = Grammar.VERBS
+        self.nouns = Grammar.NOUNS
         self.phrase = ""
 
     def find_next_verb(self, token):
@@ -54,8 +57,7 @@ class VIO(object):
         self.phrase += " " + phrase
 
     def handle_response_queue(self):
-        if self.verbose:
-            print(f'{self.call_sign},{self.phrase}.')
+        logging.info(f"Response: {self.call_sign},{self.phrase}.")
         self.phrase = ""
 
     def handle_phrase(self, phrase):
@@ -91,30 +93,25 @@ class VIO(object):
         try:
             self.handle_id(token)
         except VioComError as e:
-            if self.verbose:
-                print(e)
+            logging.error(e)
         else:
             try:
                 self.handle_phrase_queue(token)
             except VioComError as e:
+                logging.error(e)
                 self.handle_response(e.message)
             finally:
                 self.handle_response_queue()
 
 
-class VCS(VIO):
-    def __init__(self, call_sign, verbose=False):
-        super().__init__(call_sign, verbose)
-
-
 def main(ARGS):
-    vcs = VCS(ARGS.call_sign, ARGS.verbose)
+    vio = Parser(ARGS.call_sign, ARGS.verbose)
     while True:
         command = input()
         if not command:
             break
         # print(command)
-        vcs.handle_command(command)
+        vio.handle_command(command)
 
     return 0
 
@@ -124,7 +121,5 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
     parser.add_argument('-s', '--call_sign', default="CityAirbus1234",
                         help="Set custom call sign")
-    parser.add_argument('-vv', '--verbose', action='store_true',
-                        help="Enable verbose console output for debug purposes")
     ARGS = parser.parse_args()
     main(ARGS)
