@@ -11,6 +11,7 @@ class VCS:
     def __init__(self, drone):
         self.listen = True
         self.drone = drone
+        self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
 
     async def startup(self):
@@ -48,23 +49,26 @@ class VCS:
         logging.info("Monitoring ATC")
         if not self.listen:
             return
-        with ThreadPoolExecutor(1, "AsyncInput", lambda x: print(x, end="", flush=True), (prompt,)) as executor:
-            return (await asyncio.get_event_loop().run_in_executor(executor, sys.stdin.readline)).rstrip()
+        while not self.abort_event.is_set():
+            await asyncio.sleep(1)
+        #with ThreadPoolExecutor(1, "AsyncInput", lambda x: print(x, end="", flush=True), (prompt,)) as executor:
+            #return (await asyncio.get_event_loop().run_in_executor(executor, sys.stdin.readline)).rstrip()
 
     async def monitor_telem(self):
         logging.info("Monitoring State")
-        while True:
+        while not self.abort_event.is_set():
             await asyncio.sleep(1)
 
     async def monitor_health(self):
         logging.info("Monitoring Health")
-        while True:
+        while not self.abort_event.is_set():
             await asyncio.sleep(1)
 
     async def fly_commands(self):
+        logging.info("Following ATC command queue")
         await self.drone.action.takeoff()
 
-        while True:
+        while not self.abort_event.is_set():
             command, *args = await self.command_queue.get()
             logging.info(f"Calling {command}({args})")
             await command(args)
@@ -74,6 +78,7 @@ class VCS:
         for emergency in results:
             if isinstance(emergency, Exception):
                 raise emergency
+        self.abort_event.set()
         await self.fly_rtb()
         await self.shutdown(asyncio.get_running_loop())
 
