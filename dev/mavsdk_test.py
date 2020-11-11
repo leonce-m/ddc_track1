@@ -47,9 +47,7 @@ class VCS:
         if not self.listen:
             return
         with ThreadPoolExecutor(1, "AsyncInput", lambda x: print(x, end="", flush=True), (prompt,)) as executor:
-            return (await asyncio.get_event_loop().run_in_executor(
-                executor, sys.stdin.readline
-            )).rstrip()
+            return (await asyncio.get_event_loop().run_in_executor(executor, sys.stdin.readline)).rstrip()
 
     async def monitor_telem(self):
         logging.info("Monitoring State")
@@ -66,15 +64,20 @@ class VCS:
             command, *args = await self.command_queue.get()
             logging.info(f"Exec drone.{command}({args})")
 
-    async def recover(self, signal, loop):
+    async def recover(self, loop, context):
         logging.info("Attempt to recover from error")
-        asyncio.create_task(self.shutdown(signal, loop))
+
+        msg = context.get("exception", context["message"])
+        logging.error(f"Caught exception: {msg}")
+        logging.info("Shutting down...")
+        asyncio.create_task(self.shutdown(loop))
 
     async def fly_emergency(self):
         logging.info("Attempt to land at nearest location")
 
-    async def shutdown(self, signal, loop):
-        logging.info(f"Received exit signal {signal.name}...")
+    async def shutdown(self, loop, signal=None):
+        if signal:
+            logging.info(f"Received exit signal {signal.name}...")
         logging.info("Attempt in position landing")
         logging.info("Disarming drone")
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
@@ -97,6 +100,7 @@ if __name__ == "__main__":
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for s in signals:
         loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(vcs.recover(sig, loop)))
+    loop.set_exception_handler(vcs.recover)
 
     try:
         loop.create_task(vcs.startup())
