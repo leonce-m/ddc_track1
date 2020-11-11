@@ -4,7 +4,7 @@ import signal
 import asyncio
 import concurrent.futures
 from mavsdk import System
-import mavsdk.telemetry
+from mavsdk.telemetry import *
 from concurrent.futures import ThreadPoolExecutor
 
 class VCS:
@@ -24,23 +24,25 @@ class VCS:
                 break
 
         logging.info("Arming drone")
-        async for state in self.drone.telemetry.armed():
-            if state.is_armed:
+        async for armed in self.drone.telemetry.armed():
+            if armed:
                 logging.info("Arming complete")
                 break
             else:
                 await self.drone.action.arm()
                 await asyncio.sleep(0.1)
         await asyncio.sleep(1)
+        logging.info("Starting main routine")
+        asyncio.create_task(self.run())
 
-        logging.info("Starting main coroutines")
-        asyncio.create_task(self.monitor_atc())
-        asyncio.create_task(self.monitor_telem())
-        asyncio.create_task(self.monitor_health())
-        asyncio.create_task(self.fly_commands())
-
-    async def handle_command(self, command):
-        logging.info("Command received: " + command)
+    async def run(self):
+        results = await asyncio.gather(
+            self.monitor_atc(),
+            self.monitor_telem(),
+            self.monitor_health(),
+            self.fly_commands()
+        )
+        await self.handle_emergency(results)
 
     async def monitor_atc(self, prompt: str = ""):
         logging.info("Monitoring ATC")
@@ -60,26 +62,42 @@ class VCS:
             await asyncio.sleep(1)
 
     async def fly_commands(self):
+        await self.drone.action.takeoff()
+
         while True:
             command, *args = await self.command_queue.get()
-            logging.info(f"Exec drone.{command}({args})")
+            logging.info(f"Calling {command}({args})")
+            await command(args)
 
-    async def recover(self, loop, context):
+    async def handle_emergency(self, results):
         logging.info("Attempt to recover from error")
+        for emergency in results:
+            if isinstance(emergency, Exception):
+                raise emergency
+        await self.fly_rtb()
+        await self.shutdown(asyncio.get_running_loop())
 
+    async def fly_rtb(self):
+        logging.info("Attempt to land at nearest location")
+        await self.drone.action.return_to_launch()
+        logging.info("Returning Home")
+        async for landed in self.drone.telemetry.landed_state():
+            if landed == LandedState.ON_GROUND:
+                logging.info("Landed")
+                break
+        await asyncio.sleep(1)
+        logging.info("Disarming drone")
+        await self.drone.action.disarm()
+
+    def handle_exception(self, loop, context):
         msg = context.get("exception", context["message"])
         logging.error(f"Caught exception: {msg}")
-        logging.info("Shutting down...")
+        logging.info("Shutting down")
         asyncio.create_task(self.shutdown(loop))
-
-    async def fly_emergency(self):
-        logging.info("Attempt to land at nearest location")
 
     async def shutdown(self, loop, signal=None):
         if signal:
             logging.info(f"Received exit signal {signal.name}...")
-        logging.info("Attempt in position landing")
-        logging.info("Disarming drone")
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         [task.cancel() for task in tasks]
 
@@ -93,18 +111,33 @@ async def make_async(sync_function):
     executor = concurrent.futures.ThreadPoolExecutor()
     return await asyncio.get_event_loop().run_in_executor(executor, sync_function)
 
+def config_logger():
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
 
-if __name__ == "__main__":
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(message)s')
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+
+def main():
     vcs = VCS(System())
     loop = asyncio.get_event_loop()
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for s in signals:
-        loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(vcs.recover(sig, loop)))
-    loop.set_exception_handler(vcs.recover)
+        loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(vcs.shutdown(sig, loop)))
+    loop.set_exception_handler(vcs.handle_exception)
 
     try:
         loop.create_task(vcs.startup())
         loop.run_forever()
     finally:
+        loop.run_until_complete(loop.shutdown_asyncgens())
         loop.close()
         logging.info("Successfully shutdown VCS")
+
+if __name__ == "__main__":
+    config_logger()
+    main()
