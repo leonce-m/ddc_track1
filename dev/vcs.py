@@ -150,5 +150,5 @@ if __name__ == "__main__":
                         help="Set system address for drone serial port connection")
     ARGS = parser.parse_args()
 
-    misc.config_logging_stdout(logging.DEBUG)
+    misc.config_logger()
     main(ARGS)
