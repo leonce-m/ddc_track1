@@ -8,22 +8,23 @@ from mavsdk.telemetry import *
 from concurrent.futures import ThreadPoolExecutor
 from dev import vio, misc
 
+
 class VCS:
-    def __init__(self, drone):
+    def __init__(self, drone, call_sign, serial):
         self.listen = True
         self.drone = drone
-        self.command_parser = vio.Parser("Me123")
+        self.system_address = serial
+        self.command_parser = vio.Parser(call_sign)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
 
     async def startup(self):
         logging.info("Initializing")
-        system_address = "udp://:14550"
-        await self.drone.connect(system_address=system_address)
-        logging.info(f"{system_address} waiting for connection")
+        await self.drone.connect(system_address=self.system_address)
+        logging.info(f"{self.system_address} waiting for connection")
         async for state in self.drone.core.connection_state():
             if state.is_connected:
-                logging.info(f"Connected to {system_address}")
+                logging.info(f"Connected to {self.system_address}")
                 break
 
         logging.info("Arming drone")
@@ -52,9 +53,11 @@ class VCS:
         if not self.listen:
             return
         while not self.abort_event.is_set():
+            # TODO: listen to stdio and call command_parser.handle_command(string)
+            # TODO: append return of handle_command to command_queue
             await asyncio.sleep(1)
-        #with ThreadPoolExecutor(1, "AsyncInput", lambda x: print(x, end="", flush=True), (prompt,)) as executor:
-            #return (await asyncio.get_event_loop().run_in_executor(executor, sys.stdin.readline)).rstrip()
+        # with ThreadPoolExecutor(1, "AsyncInput", lambda x: print(x, end="", flush=True), (prompt,)) as executor:
+        # return (await asyncio.get_event_loop().run_in_executor(executor, sys.stdin.readline)).rstrip()
 
     async def monitor_telem(self):
         logging.info("Monitoring State")
@@ -103,9 +106,9 @@ class VCS:
         self.abort_event.set()
         asyncio.create_task(self.shutdown(loop))
 
-    async def shutdown(self, loop, signal=None):
-        if signal:
-            logging.info(f"Received exit signal {signal.name}...")
+    async def shutdown(self, loop, sig=None):
+        if sig:
+            logging.info(f"Received exit signal {sig.name}...")
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
         [task.cancel() for task in tasks]
 
@@ -119,8 +122,9 @@ async def make_async(sync_function):
     executor = concurrent.futures.ThreadPoolExecutor()
     return await asyncio.get_event_loop().run_in_executor(executor, sync_function)
 
-def main():
-    vcs = VCS(System())
+
+def main(args):
+    vcs = VCS(System(), args.call_sign, args.serial)
     loop = asyncio.get_event_loop()
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for s in signals:
@@ -137,5 +141,14 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
+    parser.add_argument('-c', '--call_sign', default="CityAirbus1234",
+                        help="Set custom call sign")
+    parser.add_argument('-s', '--serial', default="udp://:14550",
+                        help="Set system address for drone serial port connection")
+    ARGS = parser.parse_args()
+
     misc.config_logger()
-    main()
+    main(ARGS)
