@@ -6,11 +6,13 @@ import concurrent.futures
 from mavsdk import System
 from mavsdk.telemetry import *
 from concurrent.futures import ThreadPoolExecutor
+from dev import vio
 
 class VCS:
     def __init__(self, drone):
         self.listen = True
         self.drone = drone
+        self.command_parser = vio.Parser("Me123")
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
 
