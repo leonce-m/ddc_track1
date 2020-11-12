@@ -40,6 +40,8 @@ class VCS:
         asyncio.create_task(self.run())
 
     async def run(self):
+        asyncio.create_task(self.fly_rtb())
+
         results = await asyncio.gather(
             self.monitor_atc(),
             self.monitor_telem(),
@@ -74,20 +76,20 @@ class VCS:
         await self.drone.action.takeoff()
 
         while not self.abort_event.is_set():
-            command, *args = await self.command_queue.get()
-            logging.info(f"Calling {command}({args})")
-            await command(args)
-        await self.fly_rtb()
+            command = await self.command_queue.get()
+            logging.info(f"Calling {command}")
+            await command
 
     async def handle_emergency(self, results):
         logging.info("Attempt to recover from error")
         for emergency in results:
             if isinstance(emergency, Exception):
                 raise emergency
-        await self.fly_rtb()
-        await self.shutdown(asyncio.get_running_loop())
+        self.abort_event.set()
+        asyncio.create_task(self.shutdown(asyncio.get_running_loop()))
 
     async def fly_rtb(self):
+        await self.abort_event.wait()
         logging.info("Attempt to land at nearest location")
         await self.drone.action.return_to_launch()
         logging.info("Returning Home")
@@ -128,14 +130,13 @@ def main(args):
     loop = asyncio.get_event_loop()
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for s in signals:
-        loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(vcs.shutdown(sig, loop)))
+        loop.add_signal_handler(s, lambda sig=s: asyncio.create_task(vcs.shutdown(loop, sig)))
     loop.set_exception_handler(vcs.handle_exception)
 
     try:
         loop.create_task(vcs.startup())
         loop.run_forever()
     finally:
-        loop.run_until_complete(loop.shutdown_asyncgens())
         loop.close()
         logging.info("Successfully shutdown VCS")
 
@@ -150,5 +151,5 @@ if __name__ == "__main__":
                         help="Set system address for drone serial port connection")
     ARGS = parser.parse_args()
 
-    misc.config_logger()
+    misc.config_logging_stdout(logging.DEBUG)
     main(ARGS)

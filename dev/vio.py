@@ -67,6 +67,8 @@ class Parser(object):
 
     def handle_phrase(self, phrase, v_type):
         # TODO: implement proper command selection based on v_type[2]
+        for regex in self.nouns.get(v_type[1], ""):
+            pass
         # TODO: regex search for noun params
         # TODO: convert FL and ft to m
         command = v_type[2]
