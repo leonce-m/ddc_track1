@@ -54,12 +54,10 @@ class VCS:
         logging.info("Monitoring ATC")
         if not self.listen:
             return
-        while not self.abort_event.is_set():
-            # TODO: listen to stdio and call command_parser.handle_command(string)
-            # TODO: append return of handle_command to command_queue
-            await asyncio.sleep(1)
-        # with ThreadPoolExecutor(1, "AsyncInput", lambda x: print(x, end="", flush=True), (prompt,)) as executor:
-        # return (await asyncio.get_event_loop().run_in_executor(executor, sys.stdin.readline)).rstrip()
+        with ThreadPoolExecutor(1, "AsyncInput", lambda x: print(x, end="", flush=True), (prompt,)) as executor:
+            while not self.abort_event.is_set():
+                cmd_string = (await asyncio.get_event_loop().run_in_executor(executor, sys.stdin.readline)).rstrip()
+                await self.command_queue.put(self.command_parser.handle_command(cmd_string))
 
     async def monitor_telem(self):
         logging.info("Monitoring State")
@@ -76,9 +74,9 @@ class VCS:
         await self.drone.action.takeoff()
 
         while not self.abort_event.is_set():
-            command = await self.command_queue.get()
-            logging.info(f"Calling {command}")
-            await command
+            command_batch = await self.command_queue.get()
+            logging.info(f"Interpreting {command_batch}")
+            # TODO: interpret command (mode, arg)
 
     async def handle_emergency(self, results):
         logging.info("Attempt to recover from error")

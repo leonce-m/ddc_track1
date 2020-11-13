@@ -83,19 +83,19 @@ class Parser(object):
         for pattern in self.nouns.get(mode):
             match = re.search(pattern, phrase)
             if match:
-                val = match.group(0)
+                arg = match.group(0)
                 if mode == Mode.ALTITUDE:
                     val = match.group('val')
                     unit = match.group('unit')
                     if unit == "FL":
-                        val = float(val) * 30.48
+                        arg = float(val) * 30.48
                     elif unit == "ft":
-                        val = float(val) * 0.3048
+                        arg = float(val) * 0.3048
                 if mode == Mode.DIRECTION:
-                    val = int(val)
+                    arg = int(arg)
                 if mode == Mode.POSITION:
-                    val = self.locations.get(val)
-                self.command_list.append((mode, val))
+                    arg = self.locations.get(arg)
+                self.command_list.append((mode, arg))
                 found_match = True
         if not found_match:
             raise VioComError(f"Phrase '{phrase}' does not contain known parameters")
@@ -125,8 +125,8 @@ class Parser(object):
             raise VioComError(f"Call sign '{token[0]}' not recognized")
         token.remove(token[0])
 
-    def handle_command(self, command_string):
-        token = command_string.split()
+    def handle_command(self, cmd_string):
+        token = cmd_string.split()
         self.command_list.clear()
         try:
             self.handle_id(token)
