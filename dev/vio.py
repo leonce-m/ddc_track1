@@ -1,4 +1,5 @@
 import logging
+import re
 from mavsdk.offboard import *
 from dev import misc
 
@@ -23,13 +24,13 @@ class Mode(Enum):
 VERBS = {
     Mode.ALTITUDE:  {"climb", "descend", "maintain"},
     Mode.DIRECTION: {"turn"},
-    Mode.POSITION:  {"hold, direct"}
+    Mode.POSITION:  {"hold", "direct"}
 }
 
 NOUNS = {
-    Mode.ALTITUDE:  {"FL [0-9]", "[0-9]+ ft"},
-    Mode.DIRECTION: {"heading [0-9]"},
-    Mode.POSITION:  {"Ingolstadt Main Station", "MIQ", "OTT VOR", "WLD VOR"}
+    Mode.ALTITUDE:  {r"(?P<unit>FL) (?P<val>\d+)", r"(?P<val>\d+) (?P<unit>ft)"},
+    Mode.DIRECTION: {r"heading (?P<val>\d+)"},
+    Mode.POSITION:  {r"Ingolstadt Main Station", r"MIQ", r"OTT VOR", r"WLD VOR"}
 }
 
 LOCATIONS_NED = {
@@ -39,52 +40,65 @@ LOCATIONS_NED = {
     "WLD VOR": (3, 0, 2)
 }
 
-
-def fl_to_m(alt):
-    return alt * 30.48
-
-def ft_to_m(alt):
-    return alt * 0.3048
+LOCATIONS_LAT_LONG = {}
 
 
 class Parser(object):
 
-    def __init__(self, call_sign):
+    def __init__(self, call_sign, ned=True):
         self.call_sign = call_sign
         self.verbs = VERBS
         self.nouns = NOUNS
-        self.phrase = ""
+        if ned:
+            self.locations = LOCATIONS_NED
+        else:
+            self.locations = LOCATIONS_LAT_LONG
+
+        self.response = ""
         self.command_list = list()
 
     def find_next_verb(self, token):
         for i, t in enumerate(token):
             for mode in self.verbs.keys():
-                for r in self.verbs[mode]:
+                for r in self.verbs.get(mode):
                     if r == t:
-                        return i, t, mode.name
+                        return i, t, mode
         return 0, 0, 0
 
     def handle_response(self, phrase, mode=None):
         # TODO: implement proper response decision tree
         if mode:
             pass
-        self.phrase += " " + phrase
+        self.response += " " + phrase
 
     def handle_response_queue(self):
-        if len(self.phrase) > 0:
-            logging.info(f"Response: {self.phrase.strip().capitalize()}, {self.call_sign}.")
+        if len(self.response) > 0:
+            logging.info(f"Response: {self.response.strip().capitalize()}, {self.call_sign}.")
         else:
             logging.info(f"Response: {self.call_sign}.")
-        self.phrase = ""
+        self.response = ""
 
     def handle_phrase(self, phrase, mode):
-        # TODO: implement proper command selection based on v_type[2]
-        for regex in self.nouns.get(mode, ""):
-            pass
-        # TODO: regex search for noun params
-        # TODO: convert FL and ft to m
-        args = []
-        self.command_list.append((mode, args))
+        found_match = False
+        for pattern in self.nouns.get(mode):
+            match = re.search(pattern, phrase)
+            if match:
+                val = match.group(0)
+                if mode == Mode.ALTITUDE:
+                    val = match.group('val')
+                    unit = match.group('unit')
+                    if unit == "FL":
+                        val = float(val) * 30.48
+                    elif unit == "ft":
+                        val = float(val) * 0.3048
+                if mode == Mode.DIRECTION:
+                    val = int(val)
+                if mode == Mode.POSITION:
+                    val = self.locations.get(val)
+                self.command_list.append((mode, val))
+                found_match = True
+        if not found_match:
+            raise VioComError(f"Phrase '{phrase}' does not contain known parameters")
 
     def handle_phrase_queue(self, token):
         if len(token) == 0:
@@ -99,8 +113,8 @@ class Parser(object):
         token.insert(i, verb1)
         phrase = " ".join(token[0:j+1])
         del token[0:j+1]
-        self.handle_response(phrase, mode1)
         self.handle_phrase(phrase, mode1)
+        self.handle_response(phrase, mode1)
         self.handle_phrase_queue(token)
 
     def handle_id(self, token):
