@@ -92,7 +92,8 @@ class Parser(object):
                     elif unit == "ft":
                         arg = float(val) * 0.3048
                 if mode == Mode.DIRECTION:
-                    arg = int(arg)
+                    val = match.group('val')
+                    arg = int(val)
                 if mode == Mode.POSITION:
                     arg = self.locations.get(arg)
                 self.command_list.append((mode, arg))
