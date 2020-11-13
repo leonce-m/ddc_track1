@@ -1,7 +1,8 @@
 import logging
 import re
 from mavsdk.offboard import *
-from dev import misc
+from dev import misc, globals
+from dev.globals import Mode
 
 
 class VioComError(Exception):
@@ -11,48 +12,16 @@ class VioComError(Exception):
     def __str__(self):
         return f"{type(self).__name__}: {self.message}"
 
-class Mode(Enum):
-    ALTITUDE  = 1
-    DIRECTION = 2
-    POSITION  = 3
-    TAKEOFF   = 4
-    LAND      = 6
-    STATUS    = 7
-    SPECIAL   = 8
-
-
-VERBS = {
-    Mode.ALTITUDE:  {"climb", "descend", "maintain"},
-    Mode.DIRECTION: {"turn"},
-    Mode.POSITION:  {"hold", "direct"}
-}
-
-NOUNS = {
-    Mode.ALTITUDE:  {r"(?P<unit>FL) (?P<val>\d+)", r"(?P<val>\d+) (?P<unit>ft)"},
-    Mode.DIRECTION: {r"heading (?P<val>\d+)"},
-    Mode.POSITION:  {r"Ingolstadt Main Station", r"MIQ", r"OTT VOR", r"WLD VOR"}
-}
-
-LOCATIONS_NED = {
-    "Ingolstadt Main Station": (0, 0, 2),
-    "MIQ": (1, 1, 2),
-    "OTT VOR": (1, 3, 2),
-    "WLD VOR": (3, 0, 2)
-}
-
-LOCATIONS_LAT_LONG = {}
-
 
 class Parser(object):
-
     def __init__(self, call_sign, ned=True):
         self.call_sign = call_sign
-        self.verbs = VERBS
-        self.nouns = NOUNS
+        self.verbs = globals.VERBS
+        self.nouns = globals.NOUNS
         if ned:
-            self.locations = LOCATIONS_NED
+            self.locations = globals.LOCATIONS_NED
         else:
-            self.locations = LOCATIONS_LAT_LONG
+            self.locations = globals.LOCATIONS_LAT_LONG
 
         self.response = ""
         self.command_list = list()
