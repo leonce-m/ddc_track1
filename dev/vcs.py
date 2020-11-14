@@ -75,24 +75,24 @@ class VCS:
 
     def handle_stdin(self):
         command = sys.stdin.readline().rstrip()
+        if command == "rtb":
+            raise ControlError("Received RTB command input")
         return self.command_parser.handle_command(command)
 
     async def monitor_telem(self):
         logging.info("Monitoring State")
         async for telem in self.drone.telemetry.position():
-            logging.info(telem)
+            # logging.info(telem)
             if self.abort_event.is_set():
                 break
             await asyncio.sleep(1)
 
-        #while not self.abort_event.is_set():
-        #    await asyncio.sleep(1)
-
     async def monitor_health(self):
         logging.info("Monitoring Health")
         while not self.abort_event.is_set():
-            await asyncio.sleep(60)
-            raise ControlError("Drone system issue encountered")
+            await asyncio.sleep(1)
+            # await asyncio.sleep(60)
+            # raise ControlError("Drone system issue encountered")
 
     async def fly_commands(self):
         logging.info("Following ATC command queue")
@@ -159,13 +159,13 @@ def main(args):
 
 if __name__ == "__main__":
     import argparse
-
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
     parser.add_argument('-c', '--call_sign', default="CityAirbus1234",
                         help="Set custom call sign")
     parser.add_argument('-s', '--serial', default="udp://:14550",
                         help="Set system address for drone serial port connection")
+    parser.add_argument('-v', '--verbose', action='store_true',
+                        help="Set logging level to DEBUG")
     ARGS = parser.parse_args()
-
-    misc.config_logging_stdout(logging.DEBUG)
+    misc.config_logging_stdout(logging.DEBUG if ARGS.verbose else logging.INFO)
     main(ARGS)
