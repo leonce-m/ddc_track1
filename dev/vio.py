@@ -1,16 +1,16 @@
 import logging
 import re
-from mavsdk.offboard import *
 from dev import misc, globals
 from dev.globals import Mode
 
 
-class VioComError(Exception):
+class CommunicationError(Exception):
     def __init__(self, message):
         self.message = message
 
     def __str__(self):
-        return f"{type(self).__name__}: {self.message}"
+        # return f"{type(self).__name__}: {self.message}"
+        return self.message
 
 
 class Parser(object):
@@ -68,14 +68,14 @@ class Parser(object):
                 self.command_list.append((mode, arg))
                 found_match = True
         if not found_match:
-            raise VioComError(f"Phrase '{phrase}' does not contain known parameters")
+            raise CommunicationError(f"Phrase '{phrase}' does not contain known parameters")
 
     def handle_phrase_queue(self, token):
         if len(token) == 0:
             return
         i, verb1, mode1 = self.find_next_verb(token)
         if not verb1:
-            raise VioComError(f"Phrase '{' '.join(token)}' does not contain known command")
+            raise CommunicationError(f"Phrase '{' '.join(token)}' does not contain known command")
         token.pop(i)
         j, verb2, mode2 = self.find_next_verb(token)
         if not verb2:
@@ -92,7 +92,7 @@ class Parser(object):
             token[0] += token[1]
             token.remove(token[1])
         if token[0] != self.call_sign:
-            raise VioComError(f"Call sign '{token[0]}' not recognized")
+            raise CommunicationError(f"Call sign '{token[0]}' not recognized")
         token.remove(token[0])
 
     def handle_command(self, cmd_string):
@@ -100,12 +100,12 @@ class Parser(object):
         self.command_list.clear()
         try:
             self.handle_id(token)
-        except VioComError as e:
+        except CommunicationError as e:
             logging.error(e)
         else:
             try:
                 self.handle_phrase_queue(token)
-            except VioComError as e:
+            except CommunicationError as e:
                 logging.error(e)
                 self.handle_response("Say again")
             finally:
