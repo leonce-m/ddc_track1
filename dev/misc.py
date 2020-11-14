@@ -8,8 +8,8 @@ def config_logging_stdout(level, full=False):
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
     if full:
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter('%(asctime)s %(name)s %(levelname)s %(message)s')
     else:
-        formatter = logging.Formatter('%(message)s')
+        formatter = logging.Formatter('%(levelname)s %(message)s')
     handler.setFormatter(formatter)
     root.addHandler(handler)
