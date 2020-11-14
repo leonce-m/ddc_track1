@@ -68,7 +68,7 @@ class Parser(object):
                 self.command_list.append((mode, arg))
                 found_match = True
         if not found_match:
-            raise CommunicationError(f"Phrase '{phrase}' does not contain known parameters")
+            logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain known parameters"))
 
     def handle_phrase_queue(self, token):
         if len(token) == 0:
