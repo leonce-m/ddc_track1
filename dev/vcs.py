@@ -35,6 +35,7 @@ class VCS:
             if state.is_connected:
                 logging.info(f"Connected to {self.system_address}")
                 break
+            await asyncio.sleep(0.1)
         logging.info("Setting mission params")
         await self.drone.action.set_takeoff_altitude(2)
         await self.drone.action.set_return_to_launch_altitude(2)
@@ -138,6 +139,7 @@ class VCS:
         logging.debug(f"Cancelling {len(tasks)} outstanding tasks")
         await asyncio.gather(*tasks, return_exceptions=True)
         logging.debug(f"Flushing metrics")
+        await asyncio.sleep(1)
         loop.stop()
 
 
