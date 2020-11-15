@@ -139,7 +139,7 @@ class VCS:
         logging.debug(f"Cancelling {len(tasks)} outstanding tasks")
         await asyncio.gather(*tasks, return_exceptions=True)
         logging.debug(f"Flushing metrics")
-        await asyncio.sleep(5)
+        await asyncio.sleep(1)
         loop.stop()
 
 
