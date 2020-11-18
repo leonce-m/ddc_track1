@@ -82,9 +82,8 @@ class Factory:
                 logging.error(e)
         await asyncio.sleep(0.1)
 
-    async def fetch(self, *meta):
-        action = self._MISSIONS.get(meta[0])
-        return partial(action, self.drone, meta[1])
+    def fetch_mission(self, mode: Mode):
+        return self._MISSIONS.get(mode)
 
     async def altitude(self, altitude):
         logging.info(f"Changing altitude to {altitude}")

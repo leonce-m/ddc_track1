@@ -71,8 +71,8 @@ class Controller(Factory):
     async def monitor_atc(self):
         logging.info("Monitoring ATC")
         while not self.abort_event.is_set():
-            meta = await asyncio.get_event_loop().run_in_executor(self.tp_executor, self.handle_stdin)
-            if meta:
+            meta_list = await asyncio.get_event_loop().run_in_executor(self.tp_executor, self.handle_stdin)
+            for meta in meta_list:
                 await self.command_queue.put(meta)
 
     def handle_stdin(self):
@@ -100,13 +100,14 @@ class Controller(Factory):
         logging.info("Following ATC command queue")
         async for in_air in self.drone.telemetry.in_air():
             if await self.try_action(self.drone.action.takeoff, in_air, ActionError, "Takeoff successful"):
-                return
+                break
         # await self.drone.action.takeoff()
 
         while not self.abort_event.is_set():
-            command_batch = await self.command_queue.get()
-            logging.debug(f"Interpreting {command_batch}")
-            # TODO: interpret command (mode, arg)
+            mode, arg = await self.command_queue.get()
+            logging.debug(f"Interpreting {mode, arg}")
+            command = self.fetch_mission(mode)
+            await command(arg)
 
     async def fly_rtb(self):
         logging.info("Attempt to land at nearest location")
