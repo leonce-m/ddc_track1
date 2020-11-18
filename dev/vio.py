@@ -1,7 +1,7 @@
 import logging
 import re
-from dev import misc, globals
-from dev.globals import Mode
+from dev import misc, mission
+from dev.mission import Mode
 
 
 class CommunicationError(Exception):
@@ -16,13 +16,9 @@ class CommunicationError(Exception):
 class Parser(object):
     def __init__(self, call_sign, ned=True):
         self.call_sign = call_sign
-        self.verbs = globals.VERBS
-        self.nouns = globals.NOUNS
-        if ned:
-            self.locations = globals.LOCATIONS_NED
-        else:
-            self.locations = globals.LOCATIONS_LAT_LONG
-
+        self.verbs = mission.VERBS
+        self.nouns = mission.NOUNS
+        self.ned = ned
         self.response = ""
         self.command_list = list()
 
@@ -50,21 +46,8 @@ class Parser(object):
     def handle_phrase(self, phrase, mode):
         found_match = False
         for pattern in self.nouns.get(mode):
-            match = re.search(pattern, phrase)
-            if match:
-                arg = match.group(0)
-                if mode == Mode.ALTITUDE:
-                    val = match.group('val')
-                    unit = match.group('unit')
-                    if unit == "FL":
-                        arg = float(val) * 30.48
-                    elif unit == "ft":
-                        arg = float(val) * 0.3048
-                if mode == Mode.DIRECTION:
-                    val = match.group('val')
-                    arg = int(val)
-                if mode == Mode.POSITION:
-                    arg = self.locations.get(arg)
+            arg = mission.get_arg(pattern, phrase, mode, self.ned)
+            if arg:
                 self.command_list.append((mode, arg))
                 found_match = True
         if not found_match:
