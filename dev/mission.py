@@ -1,6 +1,7 @@
+import re
+import math
 import logging
 import asyncio
-import re
 from mavsdk import System
 from mavsdk.telemetry import *
 from mavsdk.action import *
@@ -34,10 +35,10 @@ NOUNS = {
 }
 
 LOCATIONS_NED = {
-    "Ingolstadt Main Station": (0, 0, 2),
-    "MIQ": (1, 1, 2),
-    "OTT VOR": (1, 3, 2),
-    "WLD VOR": (3, 0, 2)
+    "Ingolstadt Main Station": PositionNed(0, 0, -2),
+    "MIQ": PositionNed(1, 1, -2),
+    "OTT VOR": PositionNed(1, 3, -2),
+    "WLD VOR": PositionNed(3, 0, -2)
 }
 
 LOCATIONS_LAT_LONG = {}
@@ -60,16 +61,16 @@ def get_arg(pattern, phrase, mode, ned=True):
             arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LONG.get(arg)
         return arg
 
-class Factory:
-    def __init__(self, drone):
+class Navigator:
+    def __init__(self, drone: System, ned: bool):
         self.drone = drone
-        self._MISSIONS = {
-            Mode.ALTITUDE: self.altitude,
-            Mode.HEADING:  self.heading,
-            Mode.POSITION: self.goto,
-            Mode.TAKEOFF:  self.takeoff,
-            Mode.LAND:     self.land
-        }
+        self.ned = ned
+        self.min_alt_asl = 1
+        self.target_alt = 1
+        self.max_velocity = 0.5
+        self.max_climb_rate = 0.2
+        self.hold_task = None
+        self.hold_mode = None
 
     async def try_action(self, action, condition, error, message):
         if condition:
@@ -82,25 +83,48 @@ class Factory:
                 logging.error(e)
         await asyncio.sleep(0.1)
 
-    def fetch_mission(self, mode: Mode):
-        return self._MISSIONS.get(mode)
+    def fetch_command_coro(self, mode: Mode, *args):
+        if mode == Mode.ALTITUDE:
+            return self.set_target_alt(*args)
+        if mode == Mode.HEADING:
+            return self.altitude_heading(*args)
+        if mode == Mode.POSITION:
+            if self.ned:
+                return self.altitude_position_ned(*args)
+            else:
+                return self.altitude_position_lat_long(*args)
 
-    async def altitude(self, altitude):
-        logging.info(f"Changing altitude to {altitude}")
+    async def get_pos(self):
+        async for pos in self.drone.telemetry.position():
+            while not pos:
+                await asyncio.sleep(0.1)
+            return pos
+
+    async def get_pos_vel_ned(self):
+        async for pos_vel_ned in self.drone.telemetry.position_velocity_ned():
+            while not pos_vel_ned:
+                await asyncio.sleep(0.1)
+            return pos_vel_ned
+
+    async def set_target_alt(self, target_alt: float):
+        self.target_alt = max(target_alt, self.min_alt_asl)
+
+    async def altitude_heading(self, heading: int):
+        logging.info(f"Change heading to {heading} while holding {self.target_alt}m ASL")
         await asyncio.sleep(0.1)
 
-    async def heading(self, heading):
-        logging.info(f"Changing heading to {heading}")
+    async def altitude_position_ned(self, pos_ned: PositionNed):
+        logging.info(f"Set enroute towards {pos_ned.north_m}m N, {pos_ned.east_m}m E while holding {self.target_alt}m ASL")
         await asyncio.sleep(0.1)
 
-    async def goto(self, pos):
-        logging.info(f"Enroute towards {pos}")
+    async def altitude_position_lat_long(self, pos: Position):
+        logging.info(f"Set enroute towards {pos.longitude_deg}° N, {pos.latitude_deg}° E while holding {self.target_alt}m ASL")
         await asyncio.sleep(0.1)
 
-    async def takeoff(self):
+    async def command_takeoff(self):
         logging.info(f"Taking off")
         await asyncio.sleep(0.1)
 
-    async def land(self):
+    async def command_landing(self):
         logging.info(f"Inbound for landing")
         await asyncio.sleep(0.1)

@@ -8,7 +8,7 @@ from mavsdk.action import *
 from mavsdk.offboard import *
 from concurrent.futures import ThreadPoolExecutor
 from dev import vio, misc
-from dev.mission import Factory
+from dev.mission import Navigator
 
 
 class ControlError(Exception):
@@ -19,9 +19,9 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class Controller(Factory):
-    def __init__(self, drone: System, call_sign: str, serial: str):
-        super().__init__(drone)
+class Controller(Navigator):
+    def __init__(self, drone: System, call_sign: str, serial: str, ned=True):
+        super().__init__(drone, ned)
         self.drone = drone
         self.system_address = serial
         self.command_parser = vio.Parser(call_sign)
@@ -104,10 +104,10 @@ class Controller(Factory):
         # await self.drone.action.takeoff()
 
         while not self.abort_event.is_set():
-            mode, arg = await self.command_queue.get()
-            logging.debug(f"Interpreting {mode, arg}")
-            command = self.fetch_mission(mode)
-            await command(arg)
+            mode, *args = await self.command_queue.get()
+            logging.debug(f"Interpreting {mode, *args}")
+            cmd_coro = self.fetch_command_coro(mode, *args)
+            asyncio.create_task(cmd_coro)
 
     async def fly_rtb(self):
         logging.info("Attempt to land at nearest location")
