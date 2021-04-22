@@ -7,9 +7,9 @@ from mavsdk.telemetry import *
 from mavsdk.action import *
 from mavsdk.offboard import *
 from concurrent.futures import ThreadPoolExecutor
-from src.vio import Parser
-from src.misc import *
-from src.mission import NavigatorNed
+from .vio import Parser
+from .misc import *
+from .mission import NavigatorNed
 
 
 class ControlError(Exception):

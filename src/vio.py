@@ -1,7 +1,7 @@
 import logging
 import re
-from src.misc import *
-from src.mission import *
+from .misc import *
+from .mission import *
 
 
 class CommunicationError(Exception):
