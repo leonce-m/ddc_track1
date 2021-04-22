@@ -7,7 +7,9 @@ from mavsdk.telemetry import *
 from mavsdk.action import *
 from mavsdk.offboard import *
 from concurrent.futures import ThreadPoolExecutor
-from dev import vio, misc
+from src.vio import Parser
+from src.misc import *
+from src.mission import NavigatorNed
 
 
 class ControlError(Exception):
@@ -18,12 +20,12 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class VCS:
+class Controller(NavigatorNed):
     def __init__(self, drone: System, call_sign: str, serial: str):
-        self.listen = True
+        super().__init__(drone)
         self.drone = drone
         self.system_address = serial
-        self.command_parser = vio.Parser(call_sign)
+        self.command_parser = Parser(call_sign)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
         self.tp_executor = ThreadPoolExecutor()
@@ -41,12 +43,8 @@ class VCS:
         await self.drone.action.set_return_to_launch_altitude(2)
         logging.info("Arming drone")
         async for armed in self.drone.telemetry.armed():
-            if armed:
-                logging.info("Arming complete")
-                break
-            else:
-                await self.drone.action.arm()
-            await asyncio.sleep(0.1)
+            if await self.try_action(self.drone.action.arm, armed, ActionError, "Arming successful"):
+                return
 
     # noinspection PyBroadException
     async def run(self):
@@ -55,13 +53,17 @@ class VCS:
             await self.startup()
             await asyncio.sleep(1)
             logging.info("Starting main routine")
-            await asyncio.gather(
-                self.monitor_atc(),
-                self.monitor_telem(),
-                self.monitor_health(),
-                self.fly_commands()
-            )
-        except (KeyboardInterrupt, ControlError, ActionError, TelemetryError, OffboardError) as e:
+            while not self.abort_event.is_set():
+                try:
+                    await asyncio.gather(
+                        self.monitor_atc(),
+                        self.monitor_telem(),
+                        self.monitor_health(),
+                        self.fly_commands()
+                    )
+                except (ActionError, TelemetryError, OffboardError) as e:
+                    logging.error(e)
+        except Exception as e:
             logging.error(e)
             self.abort_event.set()
             await self.fly_rtb()
@@ -70,8 +72,8 @@ class VCS:
     async def monitor_atc(self):
         logging.info("Monitoring ATC")
         while not self.abort_event.is_set():
-            meta = await asyncio.get_event_loop().run_in_executor(self.tp_executor, self.handle_stdin)
-            if meta:
+            meta_list = await asyncio.get_event_loop().run_in_executor(self.tp_executor, self.handle_stdin)
+            for meta in meta_list:
                 await self.command_queue.put(meta)
 
     def handle_stdin(self):
@@ -97,12 +99,16 @@ class VCS:
 
     async def fly_commands(self):
         logging.info("Following ATC command queue")
-        await self.drone.action.takeoff()
+        async for in_air in self.drone.telemetry.in_air():
+            if await self.try_action(self.drone.action.takeoff, in_air, ActionError, "Takeoff successful"):
+                break
+        # await self.drone.action.takeoff()
 
         while not self.abort_event.is_set():
-            command_batch = await self.command_queue.get()
-            logging.debug(f"Interpreting {command_batch}")
-            # TODO: interpret command (mode, arg)
+            mode, *args = await self.command_queue.get()
+            logging.debug(f"Interpreting {mode, *args}")
+            cmd_coro = self.fetch_command_coro(mode, *args)
+            asyncio.create_task(cmd_coro)
 
     async def fly_rtb(self):
         logging.info("Attempt to land at nearest location")
@@ -144,7 +150,7 @@ class VCS:
 
 
 def main(args):
-    vcs = VCS(System(), args.call_sign, args.serial)
+    vcs = Controller(System(), args.call_sign, args.serial)
     loop = asyncio.get_event_loop()
     signals = (signal.SIGHUP, signal.SIGTERM, signal.SIGINT)
     for s in signals:
@@ -161,6 +167,7 @@ def main(args):
 
 if __name__ == "__main__":
     import argparse
+
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
     parser.add_argument('-c', '--call_sign', default="CityAirbus1234",
                         help="Set custom call sign")
@@ -169,5 +176,5 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="Set logging level to DEBUG")
     ARGS = parser.parse_args()
-    misc.config_logging_stdout(logging.DEBUG if ARGS.verbose else logging.INFO)
+    config_logging_stdout(logging.DEBUG if ARGS.verbose else logging.INFO)
     main(ARGS)
