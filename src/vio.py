@@ -1,7 +1,7 @@
 import logging
 import re
-from src import misc, mission
-from src.mission import Mode
+from src.misc import *
+from src.mission import *
 
 
 class CommunicationError(Exception):
@@ -16,8 +16,8 @@ class CommunicationError(Exception):
 class Parser(object):
     def __init__(self, call_sign, ned=True):
         self.call_sign = call_sign
-        self.verbs = mission.VERBS
-        self.nouns = mission.NOUNS
+        self.verbs = VERBS
+        self.nouns = NOUNS
         self.ned = ned
         self.response = ""
         self.command_list = list()
@@ -46,7 +46,7 @@ class Parser(object):
     def handle_phrase(self, phrase, mode):
         found_match = False
         for pattern in self.nouns.get(mode):
-            arg = mission.get_arg(pattern, phrase, mode, self.ned)
+            arg = get_arg(pattern, phrase, mode, self.ned)
             if arg:
                 self.command_list.append((mode, arg))
                 found_match = True
@@ -103,7 +103,7 @@ if __name__ == '__main__':
                         help="Set custom call sign")
     ARGS = parser.parse_args()
 
-    misc.config_logging_stdout(logging.DEBUG)
+    config_logging_stdout(logging.DEBUG)
 
     vio = Parser(ARGS.call_sign)
     while True:
