@@ -61,14 +61,12 @@ def get_arg(pattern, phrase, mode, ned=True):
             arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LONG.get(arg)
         return arg
 
-class Navigator:
-    def __init__(self, drone: System, ned: bool):
+class NavigatorNed:
+    def __init__(self, drone: System):
         self.drone = drone
-        self.ned = ned
-        self.min_alt_asl = 1
-        self.target_alt = 1
+        self.min_alt = 1
         self.max_velocity = 0.5
-        self.max_climb_rate = 0.2
+        self.target_alt = 1
         self.hold_task = None
         self.hold_mode = None
 
@@ -86,19 +84,10 @@ class Navigator:
     def fetch_command_coro(self, mode: Mode, *args):
         if mode == Mode.ALTITUDE:
             return self.set_target_alt(*args)
+        if mode == Mode.POSITION:
+            return self.altitude_position_ned(*args)
         if mode == Mode.HEADING:
             return self.altitude_heading(*args)
-        if mode == Mode.POSITION:
-            if self.ned:
-                return self.altitude_position_ned(*args)
-            else:
-                return self.altitude_position_lat_long(*args)
-
-    async def get_pos(self):
-        async for pos in self.drone.telemetry.position():
-            while not pos:
-                await asyncio.sleep(0.1)
-            return pos
 
     async def get_pos_vel_ned(self):
         async for pos_vel_ned in self.drone.telemetry.position_velocity_ned():
@@ -107,7 +96,7 @@ class Navigator:
             return pos_vel_ned
 
     async def set_target_alt(self, target_alt: float):
-        self.target_alt = max(target_alt, self.min_alt_asl)
+        self.target_alt = max(target_alt, self.min_alt)
 
     async def altitude_heading(self, heading: int):
         logging.info(f"Change heading to {heading} while holding {self.target_alt}m ASL")
@@ -115,10 +104,6 @@ class Navigator:
 
     async def altitude_position_ned(self, pos_ned: PositionNed):
         logging.info(f"Set enroute towards {pos_ned.north_m}m N, {pos_ned.east_m}m E while holding {self.target_alt}m ASL")
-        await asyncio.sleep(0.1)
-
-    async def altitude_position_lat_long(self, pos: Position):
-        logging.info(f"Set enroute towards {pos.longitude_deg}° N, {pos.latitude_deg}° E while holding {self.target_alt}m ASL")
         await asyncio.sleep(0.1)
 
     async def command_takeoff(self):

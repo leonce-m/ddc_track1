@@ -7,8 +7,8 @@ from mavsdk.telemetry import *
 from mavsdk.action import *
 from mavsdk.offboard import *
 from concurrent.futures import ThreadPoolExecutor
-from dev import vio, misc
-from dev.mission import Navigator
+from src import vio, misc
+from src.mission import Navigator
 
 
 class ControlError(Exception):
@@ -19,7 +19,7 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class Controller(Navigator):
+class Controller(NavigatorNed):
     def __init__(self, drone: System, call_sign: str, serial: str, ned=True):
         super().__init__(drone, ned)
         self.drone = drone
