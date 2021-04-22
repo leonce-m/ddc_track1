@@ -7,7 +7,8 @@ from mavsdk.telemetry import *
 from mavsdk.action import *
 from mavsdk.offboard import *
 from concurrent.futures import ThreadPoolExecutor
-from src import vio, misc
+import src.vio as vio
+import src.misc as misc
 from src.mission import Navigator
 
 

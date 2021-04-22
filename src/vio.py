@@ -1,6 +1,7 @@
 import logging
 import re
-from src import misc, mission
+import src.misc as misc
+import src.mission as mission
 from src.mission import Mode
 
 
