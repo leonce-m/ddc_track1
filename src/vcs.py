@@ -7,9 +7,9 @@ from mavsdk.telemetry import *
 from mavsdk.action import *
 from mavsdk.offboard import *
 from concurrent.futures import ThreadPoolExecutor
-from src.vio import Parser
-from src.misc import *
-from src.mission import NavigatorNed
+from . import vio
+from . import misc
+from . import mission
 
 
 class ControlError(Exception):
@@ -20,12 +20,12 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class Controller(NavigatorNed):
+class Controller(mission.NavigatorNed):
     def __init__(self, drone: System, call_sign: str, serial: str):
         super().__init__(drone)
         self.drone = drone
         self.system_address = serial
-        self.command_parser = Parser(call_sign)
+        self.command_parser = vio.Parser(call_sign)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
         self.tp_executor = ThreadPoolExecutor()
@@ -176,5 +176,5 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="Set logging level to DEBUG")
     ARGS = parser.parse_args()
-    config_logging_stdout(logging.DEBUG if ARGS.verbose else logging.INFO)
+    misc.config_logging_stdout(logging.DEBUG if ARGS.verbose else logging.INFO)
     main(ARGS)
