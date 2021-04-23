@@ -46,7 +46,7 @@ class Parser(object):
     def handle_phrase(self, phrase, mode):
         found_match = False
         for pattern in self.nouns.get(mode):
-            arg = get_arg(pattern, phrase, mode, self.ned)
+            arg = mission.get_arg(pattern, phrase, mode, self.ned)
             if arg:
                 self.command_list.append((mode, arg))
                 found_match = True
