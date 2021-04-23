@@ -1,7 +1,5 @@
 import logging
-import re
-from . import misc
-from . import mission
+from . import misc, mission_planner
 
 
 class CommunicationError(Exception):
@@ -16,8 +14,8 @@ class CommunicationError(Exception):
 class Parser(object):
     def __init__(self, call_sign, ned=True):
         self.call_sign = call_sign
-        self.verbs = mission.VERBS
-        self.nouns = mission.NOUNS
+        self.verbs = mission_planner.VERBS
+        self.nouns = mission_planner.NOUNS
         self.ned = ned
         self.response = ""
         self.command_list = list()
@@ -46,7 +44,7 @@ class Parser(object):
     def handle_phrase(self, phrase, mode):
         found_match = False
         for pattern in self.nouns.get(mode):
-            arg = mission.get_arg(pattern, phrase, mode, self.ned)
+            arg = mission_planner.get_arg(pattern, phrase, mode, self.ned)
             if arg:
                 self.command_list.append((mode, arg))
                 found_match = True

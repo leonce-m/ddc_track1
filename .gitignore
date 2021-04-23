@@ -1,3 +1,4 @@
 deepspeech
 venv
 .idea
+.pyc
