@@ -54,6 +54,19 @@ pip3 install -r dev/requirements.txt
 ```
 
 ## Usage
+#### vcs
+```
+python3 -m src.vcs [-c CALLSIGN] [-s SERIAL_ADRESS] [-v]
+
+    voice control system translating string input into mavlink commands
+    
+    optional arguments:
+        -h, --help          show this help message and exit
+        -v                  set logging level to DEBUG
+        -c, --call_sign     set custom call sign
+        -s, --serial        set system address for drone serial port connection
+```
+
 #### deepspeech
 ```
   deepspeech --model deepspeech-0.8.2-models.pbmm --scorer deepspeech-0.8.2-models.scorer --audio my_audio_file.wav
