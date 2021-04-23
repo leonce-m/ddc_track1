@@ -1,6 +1,8 @@
 import re
 import logging
 import asyncio
+import utm
+import math
 from mavsdk import System, telemetry, action, offboard, mission
 from enum import Enum
 
@@ -56,14 +58,10 @@ def get_arg(pattern, phrase, mode, ned=True):
             arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LONG.get(arg)
         return arg
 
-class NavigatorNed:
+class Navigator:
     def __init__(self, drone: System):
         self.drone = drone
-        self.min_alt = 1
-        self.max_velocity = 0.5
-        self.target_alt = 1
-        self.hold_task = None
-        self.hold_mode = None
+        self.mission_plan = None
 
     @staticmethod
     async def try_action(action_coro, condition, error, message):
@@ -79,27 +77,74 @@ class NavigatorNed:
 
     def fetch_command_coro(self, mode: Mode, *args):
         if mode == Mode.ALTITUDE:
-            return self.set_target_alt(*args)
+            return self.mission_change_altitude(*args)
         if mode == Mode.POSITION:
-            return self.altitude_position_ned(*args)
+            return self.mission_fly_direct(*args)
         if mode == Mode.HEADING:
-            return self.altitude_heading(*args)
+            return self.mission_fly_heading(*args)
 
-    async def get_pos_vel_ned(self):
-        async for pos_vel_ned in self.drone.telemetry.position_velocity_ned():
-            while not pos_vel_ned:
+    async def get_position(self) -> telemetry.Position:
+        async for position in self.drone.telemetry.position():
+            while not position:
                 await asyncio.sleep(0.1)
-            return pos_vel_ned
+            return position
 
-    async def set_target_alt(self, target_alt: float):
-        self.target_alt = max(target_alt, self.min_alt)
-
-    async def altitude_heading(self, heading: int):
-        logging.info(f"Change heading to {heading} while holding {self.target_alt}m ASL")
+    async def mission_change_altitude(self, target_alt: float):
+        logging.info(f"Change target altitude to {target_alt}m ASL")
+        if self.mission_plan is not None:
+            for item in self.mission_plan.mission_items:
+                item.relative_altitude = target_alt
+                logging.debug(item)
+        else:
+            pos = await self.get_position()
+            new_wp = mission.MissionItem(
+                pos.latitude_deg,
+                pos.longitude_deg,
+                target_alt,
+                1.0,
+                False,
+                float('nan'),
+                float('nan'),
+                mission.MissionItem.CameraAction.NONE,
+                5.0,
+                float('nan')
+            )
+            logging.debug(new_wp)
+            self.mission_plan = mission.MissionPlan([new_wp])
+        await self.drone.mission.clear_mission()
+        await self.drone.mission.upload_mission(self.mission_plan)
+        await self.drone.mission.start_mission()
         await asyncio.sleep(0.1)
 
-    async def altitude_position_ned(self, pos_ned: telemetry.PositionNed):
-        logging.info(f"Set enroute towards {pos_ned.north_m}m N, {pos_ned.east_m}m E while holding {self.target_alt}m ASL")
+    async def mission_fly_heading(self, heading: int):
+        logging.info(f"Turning to {heading}")
+        pos_gps = await self.get_position()
+        if self.mission_plan is not None:
+            target_alt = self.mission_plan.mission_items[0].relative_altitude_m
+        else:
+            target_alt = pos_gps.relative_altitude_m
+        pos_utm = utm.from_latlon(pos_gps.latitude_deg, pos_gps.longitude_deg)
+        tgt_utm = (pos_utm[0] + math.sin(math.radians(heading)) * 5, pos_utm[1] + math.cos(math.radians(heading)) * 5)
+        tgt_gps = utm.to_latlon(*tgt_utm, pos_utm[2], pos_utm[3])
+        new_wp = mission.MissionItem(
+            *tgt_gps,
+            target_alt,
+            1.0,
+            False,
+            float('nan'),
+            float('nan'),
+            mission.MissionItem.CameraAction.NONE,
+            5.0,
+            float('nan')
+        )
+        self.mission_plan = mission.MissionPlan([new_wp])
+        await self.drone.mission.clear_mission()
+        await self.drone.mission.upload_mission(self.mission_plan)
+        await self.drone.mission.start_mission()
+        await asyncio.sleep(0.1)
+
+    async def mission_fly_direct(self, pos_ned: telemetry.PositionNed):
+        logging.info(f"Set enroute towards {pos_ned.north_m}m N, {pos_ned.east_m}m E")
         await asyncio.sleep(0.1)
 
     async def command_takeoff(self):

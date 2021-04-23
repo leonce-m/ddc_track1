@@ -15,7 +15,7 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class Controller(mission_planner.NavigatorNed):
+class Controller(mission_planner.Navigator):
     def __init__(self, drone: System, call_sign: str, serial: str):
         super().__init__(drone)
         self.drone = drone
@@ -23,7 +23,6 @@ class Controller(mission_planner.NavigatorNed):
         self.command_parser = vio.Parser(call_sign)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
-        self.mission_plan = mission.MissionPlan([])
         self.tp_executor = ThreadPoolExecutor()
 
     async def startup(self):
@@ -35,8 +34,8 @@ class Controller(mission_planner.NavigatorNed):
                 break
             await asyncio.sleep(0.1)
         logging.info("Setting mission params")
-        await self.drone.action.set_takeoff_altitude(2)
-        await self.drone.action.set_return_to_launch_altitude(2)
+        await self.drone.action.set_takeoff_altitude(5)
+        await self.drone.action.set_return_to_launch_altitude(20)
         logging.info("Arming drone")
         async for armed in self.drone.telemetry.armed():
             if await self.try_action(self.drone.action.arm, armed, action.ActionError, "Arming successful"):
