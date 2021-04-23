@@ -1,13 +1,8 @@
 import re
-import math
 import logging
 import asyncio
-from mavsdk import System
-from mavsdk.telemetry import *
-from mavsdk.action import *
-from mavsdk.offboard import *
+from mavsdk import System, telemetry, action, offboard, mission
 from enum import Enum
-from functools import partial
 
 
 class Mode(Enum):
@@ -35,10 +30,10 @@ NOUNS = {
 }
 
 LOCATIONS_NED = {
-    "Ingolstadt Main Station": PositionNed(0, 0, -2),
-    "MIQ": PositionNed(1, 1, -2),
-    "OTT VOR": PositionNed(1, 3, -2),
-    "WLD VOR": PositionNed(3, 0, -2)
+    "Ingolstadt Main Station": telemetry.PositionNed(0, 0, -2),
+    "MIQ": telemetry.PositionNed(1, 1, -2),
+    "OTT VOR": telemetry.PositionNed(1, 3, -2),
+    "WLD VOR": telemetry.PositionNed(3, 0, -2)
 }
 
 LOCATIONS_LAT_LONG = {}
@@ -70,13 +65,14 @@ class NavigatorNed:
         self.hold_task = None
         self.hold_mode = None
 
-    async def try_action(self, action, condition, error, message):
+    @staticmethod
+    async def try_action(action_coro, condition, error, message):
         if condition:
             logging.info(message)
             return True
         else:
             try:
-                await action()
+                await action_coro()
             except error as e:
                 logging.error(e)
         await asyncio.sleep(0.1)
@@ -102,7 +98,7 @@ class NavigatorNed:
         logging.info(f"Change heading to {heading} while holding {self.target_alt}m ASL")
         await asyncio.sleep(0.1)
 
-    async def altitude_position_ned(self, pos_ned: PositionNed):
+    async def altitude_position_ned(self, pos_ned: telemetry.PositionNed):
         logging.info(f"Set enroute towards {pos_ned.north_m}m N, {pos_ned.east_m}m E while holding {self.target_alt}m ASL")
         await asyncio.sleep(0.1)
 

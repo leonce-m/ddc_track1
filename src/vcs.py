@@ -2,14 +2,9 @@ import sys
 import signal
 import logging
 import asyncio
-from mavsdk import System
-from mavsdk.telemetry import *
-from mavsdk.action import *
-from mavsdk.offboard import *
 from concurrent.futures import ThreadPoolExecutor
-from . import vio
-from . import misc
-from . import mission
+from mavsdk import System, telemetry, action, offboard, mission
+from . import vio, misc, mission_planner
 
 
 class ControlError(Exception):
@@ -20,7 +15,7 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class Controller(mission.NavigatorNed):
+class Controller(mission_planner.NavigatorNed):
     def __init__(self, drone: System, call_sign: str, serial: str):
         super().__init__(drone)
         self.drone = drone
@@ -28,6 +23,7 @@ class Controller(mission.NavigatorNed):
         self.command_parser = vio.Parser(call_sign)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
+        self.mission_plan = mission.MissionPlan([])
         self.tp_executor = ThreadPoolExecutor()
 
     async def startup(self):
@@ -43,7 +39,7 @@ class Controller(mission.NavigatorNed):
         await self.drone.action.set_return_to_launch_altitude(2)
         logging.info("Arming drone")
         async for armed in self.drone.telemetry.armed():
-            if await self.try_action(self.drone.action.arm, armed, ActionError, "Arming successful"):
+            if await self.try_action(self.drone.action.arm, armed, action.ActionError, "Arming successful"):
                 return
 
     # noinspection PyBroadException
@@ -61,7 +57,7 @@ class Controller(mission.NavigatorNed):
                         self.monitor_health(),
                         self.fly_commands()
                     )
-                except (ActionError, TelemetryError, OffboardError) as e:
+                except (action.ActionError, telemetry.TelemetryError, offboard.OffboardError) as e:
                     logging.error(e)
         except Exception as e:
             logging.error(e)
@@ -100,7 +96,7 @@ class Controller(mission.NavigatorNed):
     async def fly_commands(self):
         logging.info("Following ATC command queue")
         async for in_air in self.drone.telemetry.in_air():
-            if await self.try_action(self.drone.action.takeoff, in_air, ActionError, "Takeoff successful"):
+            if await self.try_action(self.drone.action.takeoff, in_air, action.ActionError, "Takeoff successful"):
                 break
         # await self.drone.action.takeoff()
 
@@ -115,7 +111,7 @@ class Controller(mission.NavigatorNed):
         await self.drone.action.return_to_launch()
         logging.info("Returning Home")
         async for landed in self.drone.telemetry.landed_state():
-            if landed == LandedState.ON_GROUND:
+            if landed == telemetry.LandedState.ON_GROUND:
                 logging.info("Landed")
                 break
         await asyncio.sleep(1)
