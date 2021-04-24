@@ -20,7 +20,7 @@ class Controller(mission_planner.Navigator):
         super().__init__(drone)
         self.drone = drone
         self.system_address = serial
-        self.command_parser = vio.Parser(call_sign)
+        self.command_parser = vio.Parser(call_sign, ned=False)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
         self.tp_executor = ThreadPoolExecutor()

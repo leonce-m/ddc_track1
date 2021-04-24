@@ -38,7 +38,12 @@ LOCATIONS_NED = {
     "WLD VOR": telemetry.PositionNed(3, 0, -2)
 }
 
-LOCATIONS_LAT_LONG = {}
+LOCATIONS_LAT_LON = {
+    "Ingolstadt Main Station":  telemetry.Position(48.688433, 11.525667, 367, 0),
+    "MIQ": telemetry.Position(48.688383, 11.525417, 367, 0),
+    "OTT VOR": telemetry.Position(48.688600, 11.525283, 367, 0),
+    "WLD VOR": telemetry.Position(48.688667, 11.525567, 367, 0)
+}
 
 def get_arg(pattern, phrase, mode, ned=True):
     match = re.search(pattern, phrase)
@@ -55,7 +60,7 @@ def get_arg(pattern, phrase, mode, ned=True):
             val = match.group('val')
             arg = int(val)
         if mode == Mode.POSITION:
-            arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LONG.get(arg)
+            arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LON.get(arg)
         return arg
 
 class Navigator:
@@ -143,8 +148,29 @@ class Navigator:
         await self.drone.mission.start_mission()
         await asyncio.sleep(0.1)
 
-    async def mission_fly_direct(self, pos_ned: telemetry.PositionNed):
-        logging.info(f"Set enroute towards {pos_ned.north_m}m N, {pos_ned.east_m}m E")
+    async def mission_fly_direct(self, position: telemetry.Position):
+        logging.info(f"Set enroute towards N{position.latitude_deg} E{position.longitude_deg}")
+        pos_gps = await self.get_position()
+        if self.mission_plan is not None:
+            target_alt = self.mission_plan.mission_items[0].relative_altitude_m
+        else:
+            target_alt = pos_gps.relative_altitude_m
+        new_wp = mission.MissionItem(
+            position.latitude_deg,
+            position.longitude_deg,
+            target_alt,
+            1.0,
+            False,
+            float('nan'),
+            float('nan'),
+            mission.MissionItem.CameraAction.NONE,
+            5.0,
+            float('nan')
+        )
+        self.mission_plan = mission.MissionPlan([new_wp])
+        await self.drone.mission.clear_mission()
+        await self.drone.mission.upload_mission(self.mission_plan)
+        await self.drone.mission.start_mission()
         await asyncio.sleep(0.1)
 
     async def command_takeoff(self):
