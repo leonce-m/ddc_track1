@@ -2,8 +2,9 @@ import sys
 import signal
 import logging
 import asyncio
+import traceback
 from concurrent.futures import ThreadPoolExecutor
-from mavsdk import System, telemetry, action, offboard, mission
+from mavsdk import System, telemetry, action, mission
 from . import vio, misc, mission_planner
 
 
@@ -20,7 +21,7 @@ class Controller(mission_planner.Navigator):
         super().__init__(drone)
         self.drone = drone
         self.system_address = serial
-        self.command_parser = vio.Parser(call_sign)
+        self.command_parser = vio.Parser(call_sign, ned=False)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
         self.tp_executor = ThreadPoolExecutor()
@@ -36,10 +37,6 @@ class Controller(mission_planner.Navigator):
         logging.info("Setting mission params")
         await self.drone.action.set_takeoff_altitude(5)
         await self.drone.action.set_return_to_launch_altitude(20)
-        logging.info("Arming drone")
-        async for armed in self.drone.telemetry.armed():
-            if await self.try_action(self.drone.action.arm, armed, action.ActionError, "Arming successful"):
-                return
 
     # noinspection PyBroadException
     async def run(self):
@@ -56,7 +53,7 @@ class Controller(mission_planner.Navigator):
                         self.monitor_health(),
                         self.fly_commands()
                     )
-                except (action.ActionError, telemetry.TelemetryError, offboard.OffboardError) as e:
+                except (action.ActionError, telemetry.TelemetryError, mission.MissionError) as e:
                     logging.error(e)
         except Exception as e:
             logging.error(e)
@@ -93,12 +90,18 @@ class Controller(mission_planner.Navigator):
             # raise ControlError("Drone system issue encountered")
 
     async def fly_commands(self):
-        logging.info("Following ATC command queue")
+        logging.info("Arming drone")
+        async for armed in self.drone.telemetry.armed():
+            if await self.try_action(self.drone.action.arm, armed, action.ActionError, "Arming successful"):
+                return
+        await asyncio.sleep(1)
+        logging.info("Taking off")
         async for in_air in self.drone.telemetry.in_air():
             if await self.try_action(self.drone.action.takeoff, in_air, action.ActionError, "Takeoff successful"):
                 break
         # await self.drone.action.takeoff()
 
+        logging.info("Following ATC command queue")
         while not self.abort_event.is_set():
             mode, *args = await self.command_queue.get()
             logging.debug(f"Interpreting {mode, *args}")
@@ -120,6 +123,7 @@ class Controller(mission_planner.Navigator):
     def handle_exception(self, loop, context):
         msg = context.get("exception", context["message"])
         logging.exception(f"Caught exception: {msg}")
+        logging.debug(traceback.format_exc())
         asyncio.create_task(self.shutdown(loop))
 
     # noinspection PyBroadException, PyProtectedMember
