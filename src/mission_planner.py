@@ -29,7 +29,7 @@ NOUNS = {
     Mode.ALTITUDE: {r"(?P<unit>FL) (?P<val>\d+)", r"(?P<val>\d+) (?P<unit>ft)"},
     Mode.HEADING:  {r"heading (?P<val>\d+)"},
     Mode.POSITION: {r"Ingolstadt Main Station", r"MIQ", r"OTT VOR", r"WLD VOR"},
-    Mode.LAND:     {r"runway (?P<val>\d+[RL])"}
+    Mode.LAND:     {r"(?:runway) (?P<val>\d+) (?P<unit>right|left)"}
 }
 
 LOCATIONS_NED = {
@@ -37,8 +37,8 @@ LOCATIONS_NED = {
     "MIQ": telemetry.PositionNed(10, 14, -2),
     "OTT VOR": telemetry.PositionNed(-5, 9, -2),
     "WLD VOR": telemetry.PositionNed(3, 20, -2),
-    "26R": telemetry.PositionNed(0, 5, 0),
-    "26L": telemetry.PositionNed(0, -5, 0)
+    "26 right": telemetry.PositionNed(0, 5, 0),
+    "26 left": telemetry.PositionNed(0, -5, 0)
 }
 
 LOCATIONS_LAT_LON = {
@@ -46,8 +46,8 @@ LOCATIONS_LAT_LON = {
     "MIQ": telemetry.Position(48.688383, 11.525417, 367, 0),
     "OTT VOR": telemetry.Position(48.688600, 11.525283, 367, 0),
     "WLD VOR": telemetry.Position(48.688667, 11.525567, 367, 0),
-    "26R": telemetry.Position(48.688583, 11.525567, 367, 0),
-    "26L": telemetry.Position(48.688583, 11.525667, 367, 0)
+    "26 right": telemetry.Position(48.688583, 11.525567, 367, 0),
+    "26 left": telemetry.Position(48.688583, 11.525667, 367, 0)
 }
 
 def get_arg(pattern, phrase, mode, ned=True):
@@ -67,8 +67,8 @@ def get_arg(pattern, phrase, mode, ned=True):
         if mode == Mode.POSITION:
             arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LON.get(arg)
         if mode == Mode.LAND:
-            val = match.group('val')
-            arg = LOCATIONS_NED.get(val) if ned else LOCATIONS_LAT_LON.get(val)
+            arg = ' '.join([match.group('val'), match.group('unit')])
+            arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LON.get(arg)
         return arg
 
 class Navigator:
