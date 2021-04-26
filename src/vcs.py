@@ -84,23 +84,14 @@ class Controller(mission_planner.Navigator):
 
     async def monitor_health(self):
         logging.info("Monitoring Health")
-        while not self.abort_event.is_set():
+        async for health_ok in self.drone.telemetry.health_all_ok():
+            if self.abort_event.is_set():
+                break
+            if not health_ok:
+                raise ControlError("Drone system issue encountered")
             await asyncio.sleep(1)
-            # await asyncio.sleep(60)
-            # raise ControlError("Drone system issue encountered")
 
     async def fly_commands(self):
-        logging.info("Arming drone")
-        async for armed in self.drone.telemetry.armed():
-            if await self.try_action(self.drone.action.arm, armed, action.ActionError, "Arming successful"):
-                return
-        await asyncio.sleep(1)
-        logging.info("Taking off")
-        async for in_air in self.drone.telemetry.in_air():
-            if await self.try_action(self.drone.action.takeoff, in_air, action.ActionError, "Takeoff successful"):
-                break
-        # await self.drone.action.takeoff()
-
         logging.info("Following ATC command queue")
         while not self.abort_event.is_set():
             mode, *args = await self.command_queue.get()

@@ -77,15 +77,11 @@ class Navigator:
         self.mission_plan = None
 
     @staticmethod
-    async def try_action(action_coro, condition, error, message):
-        if condition:
-            logging.info(message)
-            return True
-        else:
-            try:
-                await action_coro()
-            except error as e:
-                logging.error(e)
+    async def try_action(action_coro, error):
+        try:
+            await action_coro()
+        except error as e:
+            logging.error(e)
         await asyncio.sleep(0.1)
 
     def fetch_command_coro(self, mode: Mode, *args):
@@ -184,15 +180,13 @@ class Navigator:
 
     async def command_takeoff(self):
         logging.info("Arming drone")
-        async for armed in self.drone.telemetry.armed():
-            if await self.try_action(self.drone.action.arm, armed, action.ActionError, "Arming successful"):
-                return
+        await self.try_action(self.drone.action.arm, action.ActionError)
+        await asyncio.wait_for(self.is_armed(), timeout=10)
         await asyncio.sleep(1)
         logging.info("Taking off")
-        async for in_air in self.drone.telemetry.in_air():
-            if await self.try_action(self.drone.action.takeoff, in_air, action.ActionError, "Takeoff successful"):
-                break
-        await asyncio.sleep(0.1)
+        await self.try_action(self.drone.action.takeoff, action.ActionError)
+        await asyncio.wait_for(self.is_airborne(), timeout=10)
+        await asyncio.sleep(1)
 
     async def command_landing(self, position=None):
         logging.info(f"Inbound for landing at {position}")
@@ -215,11 +209,38 @@ class Navigator:
             await self.drone.mission.is_mission_finished()
         await asyncio.sleep(1)
         logging.info(f"Starting final descent")
-        async for landed in self.drone.telemetry.landed_state():
-            if await self.try_action(self.drone.action.land, landed, action.ActionError, "Landing succesful"):
-                break
+        await self.try_action(self.drone.action.land, action.ActionError)
+        await asyncio.wait_for(self.is_landed(), timeout=10)
         await asyncio.sleep(1)
         logging.info("Disarming drone")
-        async for armed in self.drone.telemetry.armed():
-            if await self.try_action(self.drone.action.disarm, not armed, action.ActionError, "Disarming successful"):
-                return
+        await self.try_action(self.drone.action.disarm, action.ActionError)
+        await asyncio.wait_for(self.is_disarmed(), timeout=10)
+        await asyncio.sleep(1)
+
+    async def is_armed(self):
+        async for armed in await self.drone.telemetry.armed():
+            if armed:
+                logging.info("Arming successful")
+                return True
+            await asyncio.sleep(0.1)
+
+    async def is_disarmed(self):
+        async for armed in await self.drone.telemetry.armed():
+            if not armed:
+                logging.info("Disarming successful")
+                return True
+            await asyncio.sleep(0.1)
+
+    async def is_airborne(self):
+        async for in_air in await self.drone.telemetry.in_air():
+            if in_air:
+                logging.info("Takeoff successful")
+                return True
+            await asyncio.sleep(0.1)
+
+    async def is_landed(self):
+        async for landed_state in await self.drone.telemetry.landed_state():
+            if landed_state == telemetry.LandedState.ON_GROUND:
+                logging.info("Landing successful")
+                return True
+            await asyncio.sleep(0.1)
