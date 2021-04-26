@@ -5,3 +5,7 @@ halo~=0.0.18
 numpy>=1.15.1
 scipy>=1.1.0
 pyautogui~=0.9.52
+
+mavsdk~=0.17.0
+text2num~=2.2.1
+utm~=0.7.0
