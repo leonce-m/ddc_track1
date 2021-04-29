@@ -76,6 +76,7 @@ class Navigator:
     def __init__(self, drone: System):
         self.drone = drone
         self.mission_plan = None
+        self.target_alt = 5
 
     @staticmethod
     async def try_action(action_coro, error):
@@ -107,24 +108,30 @@ class Navigator:
     async def upload_and_start(self, mission_plan):
         await self.drone.mission.clear_mission()
         await self.drone.mission.upload_mission(mission_plan)
+        logging.debug("Mission:" + "".join(
+            map(lambda item: f"\n\t{item.latitude_deg}, {item.longitude_deg}, {item.relative_altitude_m}", mission_plan.mission_items)))
         async for mission_progress in self.drone.mission.mission_progress():
-            if mission_progress.total > 0:
-                logging.debug(f"Uploaded mission {mission_plan.mission_items}")
-                break
-            await asyncio.sleep(0.1)
+            logging.debug(mission_progress)
+            break
         await self.try_action(self.drone.mission.start_mission, mission.MissionError)
         await asyncio.sleep(0.1)
 
     async def mission_change_altitude(self, target_alt: float):
         logging.info(f"Change target altitude to {target_alt}m ASL")
+        self.target_alt = target_alt
         if self.mission_plan is not None:
-            items = self.mission_plan.mission_items
-            for i in range(len(items)):
-                items[i].relative_altitude = target_alt
+            items = list()
+            for item in self.mission_plan.mission_items:
+                items.append(mission.MissionItem(
+                    item.latitude_deg, item.longitude_deg, self.target_alt,
+                    item.speed_m_s, item.is_fly_through, item.gimbal_pitch_deg, item.gimbal_yaw_deg,
+                    item.camera_action, item.loiter_time_s, item.camera_photo_interval_s
+                ))
+            self.mission_plan = mission.MissionPlan(items)
         else:
             pos = await self.get_position()
             items = [mission.MissionItem(
-                pos.latitude_deg, pos.longitude_deg, target_alt,
+                pos.latitude_deg, pos.longitude_deg, self.target_alt,
                 1.0, False, float('nan'), float('nan'),
                 mission.MissionItem.CameraAction.NONE,
                 5.0, float('nan')
@@ -135,15 +142,11 @@ class Navigator:
     async def mission_fly_heading(self, heading: int):
         logging.info(f"Turning to {heading}")
         pos_gps = await self.get_position()
-        if self.mission_plan is not None:
-            target_alt = self.mission_plan.mission_items[0].relative_altitude_m
-        else:
-            target_alt = pos_gps.relative_altitude_m
         pos_utm = utm.from_latlon(pos_gps.latitude_deg, pos_gps.longitude_deg)
         tgt_utm = (pos_utm[0] + math.sin(math.radians(heading)) * 5, pos_utm[1] + math.cos(math.radians(heading)) * 5)
         tgt_gps = utm.to_latlon(*tgt_utm, pos_utm[2], pos_utm[3])
         items = [mission.MissionItem(
-            *tgt_gps, target_alt,
+            *tgt_gps, self.target_alt,
             1.0, False, float('nan'), float('nan'),
             mission.MissionItem.CameraAction.NONE,
             5.0, float('nan')
@@ -152,14 +155,10 @@ class Navigator:
         await self.upload_and_start(self.mission_plan)
 
     async def mission_fly_direct(self, position: telemetry.Position):
-        logging.info(f"Set enroute towards N{position.latitude_deg} E{position.longitude_deg}")
+        logging.info(f"Set enroute towards {position.latitude_deg}, {position.longitude_deg}")
         pos_gps = await self.get_position()
-        if self.mission_plan is not None:
-            target_alt = self.mission_plan.mission_items[0].relative_altitude_m
-        else:
-            target_alt = pos_gps.relative_altitude_m
         items = [mission.MissionItem(
-            position.latitude_deg, position.longitude_deg, target_alt,
+            position.latitude_deg, position.longitude_deg, self.target_alt,
             1.0, False, float('nan'), float('nan'),
             mission.MissionItem.CameraAction.NONE,
             5.0, float('nan')
@@ -178,7 +177,7 @@ class Navigator:
         await asyncio.sleep(1)
 
     async def command_landing(self, position=None):
-        logging.info(f"Inbound for landing at {position}")
+        logging.info(f"Inbound for landing at {position.latitude_deg}, {position.longitude_deg}")
         await asyncio.sleep(0.1)
         if position is not None:
             items = [
