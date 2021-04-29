@@ -84,12 +84,40 @@ class Controller(mission_planner.Navigator):
 
     async def monitor_health(self):
         logging.info("Monitoring Health")
+        trigger_state = True
         async for health_ok in self.drone.telemetry.health_all_ok():
             if self.abort_event.is_set():
                 break
-            if not health_ok:
-                raise ControlError("Drone system issue encountered")
+            if not health_ok and trigger_state:
+                logging.critical("Drone system issue encountered")
+                await self.print_telem_status()
+                trigger_state = False
+            if health_ok:
+                trigger_state = True
             await asyncio.sleep(1)
+
+    async def print_telem_status(self):
+        async for is_armed in self.drone.telemetry.armed():
+            logging.debug(f"Armed state:\n\t{is_armed}")
+            break
+        async for flight_mode in self.drone.telemetry.flight_mode():
+            logging.debug(f"Flight mode:\n\t{flight_mode}")
+            break
+        async for landed_state in self.drone.telemetry.landed_state():
+            logging.debug(f"Landed State:\n\t{landed_state}")
+            break
+        async for battery in self.drone.telemetry.battery():
+            logging.debug(str(battery).replace(' [', '\n\t').replace(', ', '\n\t').replace(']', ''))
+            break
+        async for gps_info in self.drone.telemetry.gps_info():
+            logging.debug(str(gps_info).replace(' [', '\n\t').replace(', ', '\n\t').replace(']', ''))
+            break
+        async for health in self.drone.telemetry.health():
+            logging.debug(str(health).replace(' [', '\n\t').replace(', ', '\n\t').replace(']', ''))
+            break
+        async for position in self.drone.telemetry.position():
+            logging.debug(str(position).replace(' [', '\n\t').replace(', ', '\n\t').replace(']', ''))
+            break
 
     async def fly_commands(self):
         logging.info("Following ATC command queue")
