@@ -27,7 +27,7 @@ class Parser(object):
             for r in self.verbs.get(mode):
                 match = re.search(r, phrase)
                 if match:
-                    return *match.span(), r, mode
+                    return match.start(), match.end(), r, mode
         return 0, 0, 0, 0
 
     def handle_response(self, phrase, mode=None):
