@@ -1,5 +1,7 @@
 import logging
 import re
+import pyttsx3
+from threading import Thread
 from text_to_num import alpha2digit
 from . import misc, mission_planner
 
@@ -16,6 +18,7 @@ class CommunicationError(Exception):
 class Parser(object):
     def __init__(self, call_sign, ned=True):
         self.call_sign = call_sign
+        self.tts_engine = pyttsx3.init()
         self.verbs = mission_planner.VERBS
         self.nouns = mission_planner.NOUNS
         self.ned = ned
@@ -38,10 +41,18 @@ class Parser(object):
 
     def handle_response_queue(self):
         if len(self.response) > 0:
-            logging.info(f"Response: {self.response.strip().capitalize()}, {self.call_sign}.")
+            sentence = f"{self.response.strip().capitalize()}, {self.call_sign}."
+            logging.info("Response: " + sentence)
+            tts_thread = Thread(target=self.tts, args=(sentence,))
         else:
             logging.info(f"Response: {self.call_sign}.")
+            tts_thread = Thread(target=self.tts, args=(self.call_sign,))
+        tts_thread.start()
         self.response = ""
+
+    def tts(self, utterance):
+        self.tts_engine.say(utterance)
+        self.tts_engine.runAndWait()
 
     def handle_phrase(self, phrase, mode):
         found_match = False
