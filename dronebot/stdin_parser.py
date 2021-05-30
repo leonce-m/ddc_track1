@@ -21,15 +21,13 @@ class Parser(object):
     def __init__(self, call_sign):
         self.call_sign = call_sign
         self.tts_engine = pyttsx3.init()
-        self.verbs = mission_planner.VERBS
-        self.nouns = mission_planner.NOUNS
-        self.ned = ned
+        self.vocab = mission_planner.Vocabulary()
         self.response = ""
         self.command_list = list()
 
     def find_next_verb(self, phrase):
-        for mode in self.verbs.keys():
-            for r in self.verbs.get(mode):
+        for mode in self.vocab.VERBS.keys():
+            for r in self.vocab.VERBS.get(mode):
                 match = re.search(r, phrase)
                 if match:
                     return match.start(), match.end(), r, mode
@@ -58,9 +56,9 @@ class Parser(object):
 
     def handle_phrase(self, phrase, mode):
         found_match = False
-        for pattern in self.nouns.get(mode, {""}):
+        for pattern in self.vocab.NOUNS.get(mode, {""}):
             if pattern:
-                arg = mission_planner.get_arg(pattern, phrase, mode, self.ned)
+                arg = self.vocab.get_arg(pattern, phrase, mode)
                 if arg:
                     self.command_list.append((mode, arg))
                     found_match = True

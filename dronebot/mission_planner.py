@@ -1,80 +1,53 @@
-import re
-import logging
 import asyncio
-import traceback
-import utm
+import logging
 import math
+import re
+import traceback
+from enum import IntEnum
+from pathlib import Path
+
+import utm
+import yaml
 from mavsdk import System, telemetry, action, mission
-from enum import Enum
 
 
-class Mode(Enum):
-    ALTITUDE  = 1
-    HEADING   = 2
-    POSITION  = 3
-    TAKEOFF   = 4
-    LAND      = 6
-    STATUS    = 7
-    SPECIAL   = 8
+class Vocabulary:
+    """@DynamicAttrs"""
 
+    def __init__(self):
+        with open((Path(__file__).parent / 'vocabulary.yaml').resolve()) as file:
+            vocab = yaml.load(file, Loader=yaml.FullLoader)
 
-VERBS = {
-    Mode.ALTITUDE: {"climb", "descend", "maintain"},
-    Mode.HEADING:  {"turn"},
-    Mode.POSITION: {"hold", "direct"},
-    Mode.TAKEOFF:  {"clear for takeoff"},
-    Mode.LAND:     {"clear to land"}
-}
+        setattr(self, 'MODE', IntEnum('MODE', vocab.get('MODES')))
+        setattr(self, 'VERBS', dict((self.MODE[key], set(val)) for key, val in vocab.get('VERBS').items()))
+        setattr(self, 'NOUNS', dict((self.MODE[key], set(val)) for key, val in vocab.get('NOUNS').items()))
+        setattr(self, 'POSITIONS', dict((key, telemetry.Position(*val)) for key, val in vocab.get('POSITIONS').items()))
 
-NOUNS = {
-    Mode.ALTITUDE: {r"(?P<unit>FL) (?P<val>\d+)", r"(?P<val>\d+) (?P<unit>ft)"},
-    Mode.HEADING:  {r"heading (?P<val>\d+)"},
-    Mode.POSITION: {r"Ingolstadt Main Station", r"MIQ", r"OTT VOR", r"WLD VOR"},
-    Mode.LAND:     {r"(?:runway) (?P<val>\d+) (?P<unit>right|left)"}
-}
-
-LOCATIONS_NED = {
-    "Ingolstadt Main Station": telemetry.PositionNed(0, 0, -2),
-    "MIQ": telemetry.PositionNed(10, 14, -2),
-    "OTT VOR": telemetry.PositionNed(-5, 9, -2),
-    "WLD VOR": telemetry.PositionNed(3, 20, -2),
-    "26 right": telemetry.PositionNed(0, 5, -1),
-    "26 left": telemetry.PositionNed(0, -5, -1)
-}
-
-LOCATIONS_LAT_LON = {
-    "Ingolstadt Main Station":  telemetry.Position(48.688433, 11.525667, 377, 0),
-    "MIQ": telemetry.Position(48.688383, 11.525417, 377, 0),
-    "OTT VOR": telemetry.Position(48.688600, 11.525283, 377, 0),
-    "WLD VOR": telemetry.Position(48.688667, 11.525567, 377, 0),
-    "26 right": telemetry.Position(48.688583, 11.525567, 372, 0),
-    "26 left": telemetry.Position(48.688583, 11.525667, 372, 0)
-}
-
-def get_arg(pattern, phrase, mode, ned=True):
-    match = re.search(pattern, phrase)
-    if match:
-        arg = match.group(0)
-        if mode == Mode.ALTITUDE:
-            val = match.group('val')
-            unit = match.group('unit')
-            if unit == "FL":
-                arg = float(val) * 30.48 * 0.01
-            elif unit == "ft":
-                arg = float(val) * 0.3048 * 0.01
-        if mode == Mode.HEADING:
-            val = match.group('val')
-            arg = int(val)
-        if mode == Mode.POSITION:
-            arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LON.get(arg)
-        if mode == Mode.LAND:
-            arg = ' '.join([match.group('val'), match.group('unit')])
-            arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LON.get(arg)
-        return arg
+    def get_arg(self, pattern, phrase, mode):
+        match = re.search(pattern, phrase)
+        if match:
+            arg = match.group(0)
+            if mode == self.MODE.ALTITUDE:
+                val = match.group('val')
+                unit = match.group('unit')
+                if unit == "FL":
+                    arg = float(val) * 30.48 * 0.01
+                elif unit == "ft":
+                    arg = float(val) * 0.3048 * 0.01
+            if mode == self.MODE.HEADING:
+                val = match.group('val')
+                arg = int(val)
+            if mode == self.MODE.POSITION:
+                arg = self.POSITIONS.get(arg)
+            if mode == self.MODE.LAND:
+                arg = ' '.join([match.group('val'), match.group('unit')])
+                arg = self.POSITIONS.get(arg)
+            return arg
 
 
 class MissionPlanner(Vocabulary):
     def __init__(self, drone: System):
+        super().__init__()
         self.drone = drone
         self.mission_plan = None
         self.target_alt = 5
@@ -88,16 +61,16 @@ class MissionPlanner(Vocabulary):
             logging.debug(traceback.format_exc())
         await asyncio.sleep(0.1)
 
-    def fetch_command_coro(self, mode: Mode, *args):
-        if mode == Mode.ALTITUDE:
+    def fetch_command_coro(self, mode, *args):
+        if mode == self.MODE.ALTITUDE:
             return self.mission_change_altitude(*args)
-        if mode == Mode.POSITION:
+        if mode == self.MODE.POSITION:
             return self.mission_fly_direct(*args)
-        if mode == Mode.HEADING:
+        if mode == self.MODE.HEADING:
             return self.mission_fly_heading(*args)
-        if mode == Mode.TAKEOFF:
+        if mode == self.MODE.TAKEOFF:
             return self.command_takeoff()
-        if mode == Mode.LAND:
+        if mode == self.MODE.LAND:
             return self.command_landing(*args)
 
     async def get_position(self) -> telemetry.Position:
