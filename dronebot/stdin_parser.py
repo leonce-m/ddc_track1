@@ -4,7 +4,6 @@ from threading import Thread
 
 import pyttsx3
 from text_to_num import alpha2digit
-
 from dronebot import config_logging, mission_planner
 
 

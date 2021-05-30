@@ -6,7 +6,6 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from mavsdk import System, telemetry, action, mission
-
 from dronebot import stdin_parser, config_logging, mission_planner
 
 
