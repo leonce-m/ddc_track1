@@ -30,10 +30,16 @@ class Controller(mission_planner.MissionPlanner):
 
     async def startup(self):
         await self.drone.connect(system_address=self.system_address)
-        logging.info(f"{self.system_address} waiting for connection")
+        logging.info(f"{self.system_address} waiting for connection...")
         async for state in self.drone.core.connection_state():
             if state.is_connected:
                 logging.info(f"Connected to {self.system_address}")
+                break
+            await asyncio.sleep(0.1)
+        logging.info("Running preflight checklist...")
+        async for health_all_ok in self.drone.telemetry.health_all_ok():
+            if health_all_ok:
+                logging.info("Preflight checklist complete")
                 break
             await asyncio.sleep(0.1)
         logging.info("Setting mission params")
@@ -56,9 +62,9 @@ class Controller(mission_planner.MissionPlanner):
                         self.fly_commands()
                     )
                 except (action.ActionError, telemetry.TelemetryError, mission.MissionError) as e:
-                    logging.error(e)
+                    logging.exception(e)
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
             self.abort_event.set()
             await self.fly_rtb()
             asyncio.create_task(self.shutdown(asyncio.get_running_loop()))
@@ -91,7 +97,7 @@ class Controller(mission_planner.MissionPlanner):
             if self.abort_event.is_set():
                 break
             if not health_ok and trigger_state:
-                logging.critical("Drone system issue encountered")
+                logging.warning("Drone health issue encountered")
                 await self.print_telem_status()
                 trigger_state = False
             if health_ok:
