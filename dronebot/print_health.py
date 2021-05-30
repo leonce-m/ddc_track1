@@ -1,10 +1,11 @@
 import asyncio
 import logging
-import re
-from mavsdk import System, telemetry
-import misc
 
-misc.config_logging_stdout(logging.DEBUG)
+from mavsdk import System
+
+import config_logging
+
+config_logging.config_logging_stdout(logging.DEBUG)
 
 async def print_telem_status(drone):
     async for is_armed in drone.telemetry.armed():

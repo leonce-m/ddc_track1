@@ -1,7 +1,11 @@
 import logging
 import re
+from threading import Thread
+
+import pyttsx3
 from text_to_num import alpha2digit
-from . import misc, mission_planner
+
+from dronebot import config_logging, mission_planner
 
 
 class CommunicationError(Exception):
@@ -14,20 +18,19 @@ class CommunicationError(Exception):
 
 
 class Parser(object):
-    def __init__(self, call_sign, ned=True):
+    def __init__(self, call_sign):
         self.call_sign = call_sign
-        self.verbs = mission_planner.VERBS
-        self.nouns = mission_planner.NOUNS
-        self.ned = ned
+        self.tts_engine = pyttsx3.init()
+        self.vocab = mission_planner.Vocabulary()
         self.response = ""
         self.command_list = list()
 
     def find_next_verb(self, phrase):
-        for mode in self.verbs.keys():
-            for r in self.verbs.get(mode):
+        for mode in self.vocab.VERBS.keys():
+            for r in self.vocab.VERBS.get(mode):
                 match = re.search(r, phrase)
                 if match:
-                    return *match.span(), r, mode
+                    return match.start(), match.end(), r, mode
         return 0, 0, 0, 0
 
     def handle_response(self, phrase, mode=None):
@@ -38,24 +41,32 @@ class Parser(object):
 
     def handle_response_queue(self):
         if len(self.response) > 0:
-            logging.info(f"Response: {self.response.strip().capitalize()}, {self.call_sign}.")
+            sentence = f"{self.response.strip().capitalize()}, {self.call_sign}."
+            logging.info("Response: " + sentence)
+            tts_thread = Thread(target=self.tts, args=(sentence,))
         else:
             logging.info(f"Response: {self.call_sign}.")
+            tts_thread = Thread(target=self.tts, args=(self.call_sign,))
+        tts_thread.start()
         self.response = ""
+
+    def tts(self, utterance):
+        self.tts_engine.say(utterance)
+        self.tts_engine.runAndWait()
 
     def handle_phrase(self, phrase, mode):
         found_match = False
-        for pattern in self.nouns.get(mode, {""}):
+        for pattern in self.vocab.NOUNS.get(mode, {""}):
             if pattern:
-                arg = mission_planner.get_arg(pattern, phrase, mode, self.ned)
+                arg = self.vocab.get_arg(pattern, phrase, mode)
                 if arg:
                     self.command_list.append((mode, arg))
                     found_match = True
-                if not found_match:
-                    logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
             else:
                 logging.debug(f"Mode is without expected parameters")
                 self.command_list.append((mode, None))
+        if not found_match:
+            logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
 
     def handle_phrase_queue(self, phrase):
         if len(phrase) == 0:
@@ -105,7 +116,7 @@ if __name__ == '__main__':
                         help="Set custom call sign")
     ARGS = parser.parse_args()
 
-    misc.config_logging_stdout(logging.DEBUG)
+    config_logging.config_logging_stdout(logging.DEBUG)
 
     vio = Parser(ARGS.call_sign)
     while True:
