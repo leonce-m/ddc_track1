@@ -1,10 +1,14 @@
-import time, logging
+import collections
+import logging
+import os
+import os.path
+import queue
+import wave
 from datetime import datetime
-import threading, collections, queue, os, os.path
+
 import deepspeech
 import numpy as np
 import pyaudio
-import wave
 import webrtcvad
 from halo import Halo
 from scipy import signal

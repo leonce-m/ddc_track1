@@ -1,5 +1,6 @@
-import sys
 import logging
+import sys
+
 
 def config_logging_stdout(level, full=False):
     root = logging.getLogger()

@@ -1,7 +1,8 @@
 import asyncio
+
 from mavsdk import System, offboard
-from mavsdk.telemetry import LandedState, Position
-from mavsdk.action import ActionError
+from mavsdk.telemetry import LandedState
+
 
 def lat_lon(position):
     coords = position.latitude_deg, position.longitude_deg

@@ -72,7 +72,8 @@ def get_arg(pattern, phrase, mode, ned=True):
             arg = LOCATIONS_NED.get(arg) if ned else LOCATIONS_LAT_LON.get(arg)
         return arg
 
-class Navigator:
+
+class MissionPlanner(Vocabulary):
     def __init__(self, drone: System):
         self.drone = drone
         self.mission_plan = None
@@ -108,8 +109,9 @@ class Navigator:
     async def upload_and_start(self, mission_plan):
         await self.drone.mission.clear_mission()
         await self.drone.mission.upload_mission(mission_plan)
-        logging.debug("Mission:" + "".join(
-            map(lambda item: f"\n\t{item.latitude_deg}, {item.longitude_deg}, {item.relative_altitude_m}", mission_plan.mission_items)))
+        logging.debug("Mission:" + "".join(map(
+            lambda item: f"\n\t{item.latitude_deg}, {item.longitude_deg}, {item.relative_altitude_m}",
+            mission_plan.mission_items)))
         async for mission_progress in self.drone.mission.mission_progress():
             logging.debug(mission_progress)
             break

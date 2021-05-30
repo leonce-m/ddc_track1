@@ -1,9 +1,11 @@
 import logging
 import re
-import pyttsx3
 from threading import Thread
+
+import pyttsx3
 from text_to_num import alpha2digit
-from . import misc, mission_planner
+
+from dronebot import config_logging, mission_planner
 
 
 class CommunicationError(Exception):
@@ -16,7 +18,7 @@ class CommunicationError(Exception):
 
 
 class Parser(object):
-    def __init__(self, call_sign, ned=True):
+    def __init__(self, call_sign):
         self.call_sign = call_sign
         self.tts_engine = pyttsx3.init()
         self.verbs = mission_planner.VERBS
@@ -62,11 +64,11 @@ class Parser(object):
                 if arg:
                     self.command_list.append((mode, arg))
                     found_match = True
-                if not found_match:
-                    logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
             else:
                 logging.debug(f"Mode is without expected parameters")
                 self.command_list.append((mode, None))
+        if not found_match:
+            logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
 
     def handle_phrase_queue(self, phrase):
         if len(phrase) == 0:
@@ -116,7 +118,7 @@ if __name__ == '__main__':
                         help="Set custom call sign")
     ARGS = parser.parse_args()
 
-    misc.config_logging_stdout(logging.DEBUG)
+    config_logging.config_logging_stdout(logging.DEBUG)
 
     vio = Parser(ARGS.call_sign)
     while True:

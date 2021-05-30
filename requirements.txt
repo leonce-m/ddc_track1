@@ -11,3 +11,6 @@ text2num~=2.2.1
 utm~=0.7.0
 matplotlib~=3.3.4
 pyttsx3~=2.90
+num2words~=0.5.10
+PyYAML~=5.3.1
+argparse~=1.4.0
