@@ -6,7 +6,9 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from mavsdk import System, telemetry, action, mission
-from dronebot import stdin_parser, config_logging, mission_planner
+from dronebot.mission_planner import MissionPlanner
+from dronebot.stdin_parser import Parser
+from dronebot import config_logging
 
 
 class ControlError(Exception):
@@ -17,12 +19,21 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class Controller(mission_planner.MissionPlanner):
+class Controller(MissionPlanner):
+    """
+    Handling mavsdk based asynchronous communication from a companion computer to a drone flight controller.
+    * sets up a udp/tcp/serial connection
+    * starts the stdin deepspeech parser in a separate thread
+    * converts the parsed input queue into mavskd commands (through inherited methods from MissionPlanner)
+    * watches flight parameters
+    * safely handles exeptions and interrupts
+    """
+
     def __init__(self, drone: System, call_sign: str, serial: str):
         super().__init__(drone)
         self.drone = drone
         self.system_address = serial
-        self.command_parser = stdin_parser.Parser(call_sign)
+        self.command_parser = Parser(call_sign)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
         self.tp_executor = ThreadPoolExecutor()

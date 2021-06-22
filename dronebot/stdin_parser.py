@@ -4,7 +4,8 @@ from threading import Thread
 
 import pyttsx3
 from text_to_num import alpha2digit
-from dronebot import config_logging, mission_planner
+from dronebot import config_logging
+from dronebot.mission_planner import Vocabulary
 
 
 class CommunicationError(Exception):
@@ -17,10 +18,14 @@ class CommunicationError(Exception):
 
 
 class Parser(object):
+    """
+    Converts stdin command strings from deepspeech into parsed command data.
+    """
+
     def __init__(self, call_sign):
         self.call_sign = call_sign
         self.tts_engine = pyttsx3.init()
-        self.vocab = mission_planner.Vocabulary()
+        self.vocab = Vocabulary()
         self.response = ""
         self.command_list = list()
 

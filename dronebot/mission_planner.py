@@ -12,7 +12,10 @@ from mavsdk import System, telemetry, action, mission
 
 
 class Vocabulary:
-    """@DynamicAttrs"""
+    """
+    Container class for vocabulary loaded from a YAML config file.
+    @DynamicAttrs
+    """
 
     def __init__(self):
         with open((Path(__file__).parent / 'vocabulary.yaml').resolve()) as file:
@@ -46,6 +49,10 @@ class Vocabulary:
 
 
 class MissionPlanner(Vocabulary):
+    """
+    Provides mavsdk coroutines based on parsed command input.
+    """
+
     def __init__(self, drone: System):
         super().__init__()
         self.drone = drone
