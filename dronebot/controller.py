@@ -47,11 +47,20 @@ class Controller(MissionPlanner):
                 break
             await asyncio.sleep(0.1)
         logging.info("Running preflight checklist...")
+        n_tries = 0
         async for health_all_ok in self.drone.telemetry.health_all_ok():
+            if n_tries == 5:
+                raise ControlError("Preflight check maximum tries exceeded")
             if health_all_ok:
                 logging.info("Preflight checklist complete")
                 break
-            await asyncio.sleep(0.1)
+            else:
+                logging.info(f"Preflight check failed {n_tries}/5")
+                async for health in self.drone.telemetry.health():
+                    logging.debug(str(health).replace(' [', '\n\t').replace(', ', '\n\t').replace(']', ''))
+                    break
+                n_tries += 1
+                await asyncio.sleep(5)
         logging.info("Setting mission params")
         await self.drone.action.set_takeoff_altitude(5)
         await self.drone.action.set_return_to_launch_altitude(20)
