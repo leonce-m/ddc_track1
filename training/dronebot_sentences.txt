@@ -1,0 +1,80 @@
+alpha
+readback correct
+cityairbus one two three four
+clear of traffic
+clear to land
+clear to land runway
+cleared for takeoff
+cleared for the standard ils
+cleared to
+cleared to land runway
+climb
+climb and maintain
+climb flight level
+contact
+contact ground on
+contact munich tower on
+decend and maintain
+decimal
+degrees
+delta
+departure
+descend and maintain
+destination
+echo
+eight
+expect further clearance at
+expect standard ils
+expect vectors to final ils
+feet
+five
+flight level
+fly direct
+four
+fourteen
+hold over
+hundred
+immediately
+in
+ingolstadt main station
+intercept ils
+is recleared
+knots
+left
+lima
+maintain
+manching tower
+mike
+miq
+munich airport
+munich tower
+nine
+niner
+on
+one
+oscar
+proceed direct
+qnh
+radar contact
+ready for
+report
+report when established
+right
+runway
+seven
+six
+squawk
+tango
+thirty
+thousand
+three
+to avoid traffic
+turn left heading
+turn right heading
+two
+via flight planned route
+vor
+when reaching
+wind
+wiskey
+zero
