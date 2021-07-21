@@ -58,6 +58,7 @@ class Parser(object):
         self.tts_engine.runAndWait()
 
     def handle_phrase(self, phrase, mode):
+        phrase = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(phrase, "en", True))
         found_match = False
         for pattern in self.vocab.NOUNS.get(mode, {""}):
             if pattern:
@@ -85,6 +86,7 @@ class Parser(object):
         self.handle_phrase_queue(phrase[j1:])
 
     def handle_id(self, cmd_string):
+        cmd_string = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(cmd_string, "en", True))
         token = cmd_string.split()
         if len(token) > 1 and token[1].isdigit():
             token[0] += token[1]
@@ -93,7 +95,6 @@ class Parser(object):
             raise CommunicationError(f"Call sign '{token[0]}' not recognized")
 
     def handle_command(self, cmd_string):
-        cmd_string = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(cmd_string, "en", True))
         self.command_list.clear()
         try:
             self.handle_id(cmd_string)
