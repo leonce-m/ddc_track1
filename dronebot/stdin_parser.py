@@ -1,11 +1,10 @@
 import logging
 import re
-from threading import Thread
 
-import pyttsx3
 from text_to_num import alpha2digit
 from dronebot import config_logging
 from dronebot.vocabulary import Vocabulary
+from dronebot.voice_response import TTS
 
 class CommunicationError(Exception):
     def __init__(self, message):
@@ -23,8 +22,8 @@ class Parser(object):
 
     def __init__(self, call_sign):
         self.call_sign = call_sign
-        self.tts_engine = pyttsx3.init()
         self.vocab = Vocabulary()
+        self.tts = TTS()
         self.response = ""
         self.command_list = list()
 
@@ -46,16 +45,11 @@ class Parser(object):
         if len(self.response) > 0:
             sentence = f"{self.response.strip().capitalize()}, {self.call_sign}."
             logging.info("Response: " + sentence)
-            tts_thread = Thread(target=self.tts, args=(sentence,))
+            self.tts.respond(sentence)
         else:
             logging.info(f"Response: {self.call_sign}.")
-            tts_thread = Thread(target=self.tts, args=(self.call_sign,))
-        tts_thread.start()
+            self.tts.respond(self.call_sign)
         self.response = ""
-
-    def tts(self, utterance):
-        self.tts_engine.say(utterance)
-        self.tts_engine.runAndWait()
 
     def handle_phrase(self, phrase, mode):
         phrase = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(phrase, "en", True))
