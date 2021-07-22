@@ -50,6 +50,7 @@ class Parser(object):
             self.response = ""
 
     def handle_phrase(self, phrase, mode):
+        logger.debug(f"Handle phrase '{phrase}'")
         phrase = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(phrase, "en", True))
         found_match = False
         for pattern in self.vocab.NOUNS.get(mode, {""}):
@@ -63,7 +64,7 @@ class Parser(object):
 
                 self.flight_state.update(phrase, mode, None)
         if not found_match:
-            logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
+            logger.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
 
     def handle_phrase_queue(self, phrase):
         if len(phrase) == 0:
@@ -91,17 +92,18 @@ class Parser(object):
         try:
             self.handle_id(cmd_string)
         except CommunicationError as e:
-            logging.error(e)
+            logger.error(e)
         else:
             try:
                 self.handle_phrase_queue(cmd_string)
             except CommunicationError as e:
-                logging.error(e)
+                logger.error(e)
                 self.handle_response("Say again")
             except Exception:
                 raise
             finally:
                 self.handle_response_queue()
+        logger.debug(self.command_list)
         return self.command_list
 
 
