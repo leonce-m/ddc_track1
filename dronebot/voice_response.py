@@ -1,14 +1,33 @@
 from threading import Thread
+import queue
+import logging
 import pyttsx3
 
-class TTS:
-	def __init__(self):
-		self.engine = pyttsx3.init()
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-	def respond(self, utterance):
-		thread = Thread(target=self._thread_callback, args=(utterance,))
-		thread.start()
+class TTS(Thread):
+    def __init__(self):
+        super().__init__()
+        self.queue = queue.Queue()
+        self.daemon = True
+        self.start()
 
-	def _thread_callback(self, utterance):
-		self.engine.say(utterance)
-		self.engine.runAndWait()
+    def run(self):
+        tts_engine = pyttsx3.init()
+        tts_engine.startLoop(False)
+        t_running = True
+        while t_running:
+            if self.queue.empty():
+                tts_engine.iterate()
+            else:
+                data = self.queue.get()
+                if data == "exit":
+                    t_running = False
+                else:
+                    tts_engine.say(data)
+        tts_engine.endLoop()
+
+    def respond(self, utterance):
+        logger.info(f"Respond: {utterance}")
+        self.queue.put(utterance)
