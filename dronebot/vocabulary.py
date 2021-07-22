@@ -23,20 +23,33 @@ class Vocabulary:
     def get_arg(self, pattern, phrase, mode):
         match = re.search(pattern, phrase)
         if match:
-            arg = match.group(0)
+            args = match.group(0)
             if mode == self.MODE.ALTITUDE:
                 val = match.group('val')
                 unit = match.group('unit')
-                if unit == "FL":
-                    arg = float(val) * 30.48 * 0.01
+                if unit == "flightlevel":
+                    args = float(val) * 30.48 * 0.01
                 elif unit == "ft":
-                    arg = float(val) * 0.3048 * 0.01
+                    args = float(val) * 0.3048 * 0.01
             if mode == self.MODE.HEADING:
                 val = match.group('val')
-                arg = int(val)
+                args = int(val)
             if mode == self.MODE.POSITION:
-                arg = self.POSITIONS.get(arg)
-            if mode == self.MODE.LAND:
-                arg = ' '.join([match.group('val'), match.group('unit')])
-                arg = self.POSITIONS.get(arg)
-            return arg
+                args = self.POSITIONS.get(args)
+            if mode == self.MODE.CLEARANCE:
+                clearance = match.group('type')
+                if clearance == 'takeoff':
+                    args = (clearance, None)
+                if clearance == 'flight planned route':
+                    args = (clearance, match.group('val'))
+                if clearance == 'ils':
+                    args = ' '.join([match.group('val'), match.group('unit')])
+                    args = (clearance, self.POSITIONS.get(args))
+                if clearance == 'land':
+                    args = ' '.join([match.group('val'), match.group('unit')])
+                    args = (clearance, self.POSITIONS.get(args))
+            if mode == self.MODE.CONTACT:
+                args = match.group('val')
+            if mode == self.MODE.REPORT:
+                args = match.group('val')
+            return args

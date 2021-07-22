@@ -14,3 +14,4 @@ pyttsx3~=2.90
 num2words~=0.5.10
 PyYAML~=5.3.1
 argparse~=1.4.0
+transitions~=0.8.8

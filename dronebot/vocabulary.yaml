@@ -1,17 +1,23 @@
-MODES: ['ALTITUDE', 'HEADING', 'POSITION', 'TAKEOFF', 'LAND', 'STATUS', 'SPECIAL']
+MODES: ['ALTITUDE', 'HEADING', 'POSITION', 'REPORT', 'CONTACT', 'IGNORE', 'CLEARANCE', 'TAKEOFF', 'LAND']
 
 VERBS:
-    ALTITUDE: ['climb', 'descend', 'maintain']
-    HEADING:  ['turn']
-    POSITION: ['hold', 'direct']
-    TAKEOFF:  ['clear for takeoff']
-    LAND:     ['clear to land']
+    ALTITUDE:  ['climb', 'descend', 'maintain']
+    HEADING:   ['turn']
+    POSITION:  ['hold', 'direct']
+    CLEARANCE: ['clear', 'cleared']
+    CONTACT:   ['contact']
+    REPORT:    ['report']
+    IGNORE:    ['readback', 'wind', 'radar', 'expect']
 
 NOUNS:
-    ALTITUDE: ['(?P<unit>FL) (?P<val>\d+)', '(?P<val>\d+) (?P<unit>ft)']
-    HEADING:  ['heading (?P<val>\d+)']
-    POSITION: ['Ingolstadt Main Station', 'MIQ', 'OTT VOR', 'WLD VOR']
-    LAND:     ['(?:runway) (?P<val>\d+) (?P<unit>right|left)']
+    ALTITUDE:  ['(?P<unit>flightlevel) (?P<val>\d+)', '(?P<val>\d+) (?P<unit>ft)']
+    HEADING:   ['heading (?P<val>\d+)']
+    POSITION:  ['Ingolstadt Main Station', 'MIQ', 'OTT VOR', 'WLD VOR']
+    CLEARANCE: ['to (?P<type>land) runway (?P<val>\d+) (?P<unit>right|left)',
+                'for (?P<type>takeoff)',
+                'for the standard (?P<type>ils) runway (?P<val>\d+) (?P<unit>right|left)',
+                'to (?P<val>[\w ]+) via (?P<type>flight planned route)']
+    REPORT:    ['ready for (?P<val>departure)']
 
 POSITIONS:
     Ingolstadt Main Station: [48.688433, 11.525667, 377, 0]

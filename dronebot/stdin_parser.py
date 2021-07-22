@@ -4,7 +4,8 @@ import re
 from text_to_num import alpha2digit
 from dronebot import config_logging
 from dronebot.vocabulary import Vocabulary
-from dronebot.voice_response import TTS
+from dronebot.state_machine import FlightState
+
 
 class CommunicationError(Exception):
     def __init__(self, message):
@@ -20,12 +21,14 @@ class Parser(object):
     Converts stdin command strings from deepspeech into parsed command data.
     """
 
-    def __init__(self, call_sign):
+    def __init__(self, call_sign, tts):
         self.call_sign = call_sign
-        self.vocab = Vocabulary()
-        self.tts = TTS()
+        self.atc = "manching tower"
+        self.tts = tts
         self.response = ""
+        self.vocab = Vocabulary()
         self.command_list = list()
+        self.flight_state = FlightState(self)
 
     def find_next_verb(self, phrase):
         for mode in self.vocab.VERBS.keys():
@@ -35,21 +38,16 @@ class Parser(object):
                     return match.start(), match.end(), r, mode
         return 0, 0, 0, 0
 
-    def handle_response(self, phrase, mode=None):
-        # TODO: implement proper response decision tree
-        if mode:
-            pass
+    def handle_response(self, phrase):
         self.response += " " + phrase
 
-    def handle_response_queue(self):
-        if len(self.response) > 0:
-            sentence = f"{self.response.strip().capitalize()}, {self.call_sign}."
-            logging.info("Response: " + sentence)
+    def handle_response_queue(self, full=False):
+        if len(self.response) > 0 or full:
+            sentence = (f"{self.atc.capitalize()}, " if full else "")
+            sentence += (f"{self.response.strip().capitalize()}, " if len(self.response) > 0 else "")
+            sentence += f"{self.call_sign}."
             self.tts.respond(sentence)
-        else:
-            logging.info(f"Response: {self.call_sign}.")
-            self.tts.respond(self.call_sign)
-        self.response = ""
+            self.response = ""
 
     def handle_phrase(self, phrase, mode):
         phrase = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(phrase, "en", True))
@@ -58,11 +56,12 @@ class Parser(object):
             if pattern:
                 arg = self.vocab.get_arg(pattern, phrase, mode)
                 if arg:
-                    self.command_list.append((mode, arg))
+                    self.flight_state.update(phrase, mode, arg)
                     found_match = True
             else:
                 logging.debug(f"Mode is without expected parameters")
-                self.command_list.append((mode, None))
+
+                self.flight_state.update(phrase, mode, None)
         if not found_match:
             logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
 
@@ -76,7 +75,6 @@ class Parser(object):
         if not verb2:
             j1 = len(phrase)
         self.handle_phrase(phrase[i1:j1], mode1)
-        self.handle_response(phrase[i1:j1], mode1)
         self.handle_phrase_queue(phrase[j1:])
 
     def handle_id(self, cmd_string):
@@ -109,16 +107,16 @@ class Parser(object):
 
 if __name__ == '__main__':
     import argparse
+    from dronebot.voice_response import TTS
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
     parser.add_argument('-c', '--call_sign', default="cityairbus1234",
                         help="Set custom call sign")
     ARGS = parser.parse_args()
+    logger = config_logging.config_logging_stdout(logging.DEBUG, __name__)
 
-    config_logging.config_logging_stdout(logging.DEBUG)
-
-    vio = Parser(ARGS.call_sign)
+    vio = Parser(ARGS.call_sign, TTS())
     while True:
         command = input()
         if not command:
             break
-        logging.debug(vio.handle_command(command))
+        vio.handle_command(command)

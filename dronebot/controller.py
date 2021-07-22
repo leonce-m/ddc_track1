@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from mavsdk import System, telemetry, action, mission
 from dronebot.mission_planner import MissionPlanner
 from dronebot.stdin_parser import Parser
+from dronebot.voice_response import TTS
 from dronebot import config_logging
 
 
@@ -32,7 +33,8 @@ class Controller:
     def __init__(self, drone: System, call_sign: str, serial: str):
         self.drone = drone
         self.system_address = serial
-        self.parser = Parser(call_sign)
+        self.tts = TTS()
+        self.parser = Parser(call_sign, self.tts)
         self.mission_planner = MissionPlanner(drone)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
@@ -89,7 +91,11 @@ class Controller:
             asyncio.create_task(self.shutdown(asyncio.get_running_loop()))
 
     async def monitor_atc(self):
-        logging.info("Monitoring ATC")
+        self.parser.handle_response_queue(True)
+        await asyncio.sleep(10)
+        self.parser.handle_response("request IFR clearance")
+        self.parser.handle_response_queue()
+        logger.info("Monitoring ATC")
         while not self.abort_event.is_set():
             meta_list = await asyncio.get_event_loop().run_in_executor(self.tp_executor, self.handle_stdin)
             for meta in meta_list:
