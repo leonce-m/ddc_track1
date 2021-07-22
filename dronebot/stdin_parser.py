@@ -1,12 +1,10 @@
 import logging
 import re
-from threading import Thread
 
-import pyttsx3
 from text_to_num import alpha2digit
-
-from dronebot import config_logging, mission_planner
-
+from dronebot import config_logging
+from dronebot.vocabulary import Vocabulary
+from dronebot.voice_response import TTS
 
 class CommunicationError(Exception):
     def __init__(self, message):
@@ -18,10 +16,14 @@ class CommunicationError(Exception):
 
 
 class Parser(object):
+    """
+    Converts stdin command strings from deepspeech into parsed command data.
+    """
+
     def __init__(self, call_sign):
         self.call_sign = call_sign
-        self.tts_engine = pyttsx3.init()
-        self.vocab = mission_planner.Vocabulary()
+        self.vocab = Vocabulary()
+        self.tts = TTS()
         self.response = ""
         self.command_list = list()
 
@@ -43,18 +45,14 @@ class Parser(object):
         if len(self.response) > 0:
             sentence = f"{self.response.strip().capitalize()}, {self.call_sign}."
             logging.info("Response: " + sentence)
-            tts_thread = Thread(target=self.tts, args=(sentence,))
+            self.tts.respond(sentence)
         else:
             logging.info(f"Response: {self.call_sign}.")
-            tts_thread = Thread(target=self.tts, args=(self.call_sign,))
-        tts_thread.start()
+            self.tts.respond(self.call_sign)
         self.response = ""
 
-    def tts(self, utterance):
-        self.tts_engine.say(utterance)
-        self.tts_engine.runAndWait()
-
     def handle_phrase(self, phrase, mode):
+        phrase = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(phrase, "en", True))
         found_match = False
         for pattern in self.vocab.NOUNS.get(mode, {""}):
             if pattern:
@@ -82,6 +80,7 @@ class Parser(object):
         self.handle_phrase_queue(phrase[j1:])
 
     def handle_id(self, cmd_string):
+        cmd_string = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(cmd_string, "en", True))
         token = cmd_string.split()
         if len(token) > 1 and token[1].isdigit():
             token[0] += token[1]
@@ -90,7 +89,6 @@ class Parser(object):
             raise CommunicationError(f"Call sign '{token[0]}' not recognized")
 
     def handle_command(self, cmd_string):
-        cmd_string = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(cmd_string, "en", True))
         self.command_list.clear()
         try:
             self.handle_id(cmd_string)
@@ -112,7 +110,7 @@ class Parser(object):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
-    parser.add_argument('-c', '--call_sign', default="CityAirbus1234",
+    parser.add_argument('-c', '--call_sign', default="cityairbus1234",
                         help="Set custom call sign")
     ARGS = parser.parse_args()
 

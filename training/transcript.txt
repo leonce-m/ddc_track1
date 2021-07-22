@@ -1,0 +1,27 @@
+cityairbus one two three four
+cityairbus one two three four cleared to munich airport via flight planned route climb flight level five zero squawk four four four four
+cityairbus one two three four readback correct report ready for departure
+cityairbus one two three four wind two hundred thirty degrees five knots cleared for takeoff
+cityairbus one two three four radar contact climb and maintain flight level seven zero
+cityairbus one two three four hold over miq maintain flight level seven zero expect further clearance at fourteen hundred
+cityairbus one two three four cleared for the standard ils runway two six right report when established
+cityairbus one two three four contact munich tower on one one eight decimal seven zero five
+cityairbus one two three four cleared to land runway two six right
+cityairbus one two three four contact ground on one two one decimal nine eight zero
+cityairbus one two three four proceed direct ingolstadt main station contact manching tower on one one one decimal one one
+cityairbus one two three four radar contact decend and maintain two thousand two hundred feet qnh one zero one three
+cityairbus one two three four clear to land ingolstadt main station
+cityairbus one two three four proceed direct oscar tango tango vor
+cityairbus one two three four when reaching oscar tango tango vor cleared for the standard ils runway two six left report when established
+cityairbus one two three four contact munich tower on one two zero decimal five zero five
+cityairbus one two three four clear to land runway two six left
+cityairbus one two three four contact ground on one two one decimal eight three zero
+cityairbus one two three four radar contact
+cityairbus one two three four climb flight level seven zero
+cityairbus one two three four is recleared destination echo delta mike alpha fly direct wiskey lima delta vor expect standard ils two five in echo delta mike alpha
+cityairbus one two three four readback correct
+cityairbus one two three four turn left heading zero niner zero expect vectors to final ils two six right
+cityairbus one two three four descend and maintain five thousand feet on qnh one zero one three
+cityairbus one two three four turn right heading two three five intercept ils two six right report when established
+cityairbus one two three four turn right heading two seven zero immediately to avoid traffic climb flight level seven zero
+cityairbus one two three four clear of traffic proceed direct miq

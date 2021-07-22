@@ -2,10 +2,8 @@ import asyncio
 import logging
 
 from mavsdk import System
+from dronebot import config_logging
 
-import config_logging
-
-config_logging.config_logging_stdout(logging.DEBUG)
 
 async def print_telem_status(drone):
     async for is_armed in drone.telemetry.armed():
@@ -37,5 +35,6 @@ async def run():
 
 
 if __name__ == "__main__":
+    config_logging.config_logging_stdout(logging.DEBUG)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(run())

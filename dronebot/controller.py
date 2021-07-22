@@ -6,8 +6,9 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from mavsdk import System, telemetry, action, mission
-
-from dronebot import stdin_parser, config_logging, mission_planner
+from dronebot.mission_planner import MissionPlanner
+from dronebot.stdin_parser import Parser
+from dronebot import config_logging
 
 
 class ControlError(Exception):
@@ -18,12 +19,21 @@ class ControlError(Exception):
         return f"{type(self).__name__}: {self.message}"
 
 
-class Controller(mission_planner.MissionPlanner):
+class Controller:
+    """
+    Handling mavsdk based asynchronous communication from a companion computer to a drone flight controller.
+    * sets up a udp/tcp/serial connection
+    * starts the stdin deepspeech parser in a separate thread
+    * converts the parsed input queue into mavskd commands (through inherited methods from MissionPlanner)
+    * watches flight parameters
+    * safely handles exeptions and interrupts
+    """
+
     def __init__(self, drone: System, call_sign: str, serial: str):
-        super().__init__(drone)
         self.drone = drone
         self.system_address = serial
-        self.command_parser = stdin_parser.Parser(call_sign)
+        self.parser = Parser(call_sign)
+        self.mission_planner = MissionPlanner(drone)
         self.abort_event = asyncio.Event()
         self.command_queue = asyncio.Queue()
         self.tp_executor = ThreadPoolExecutor()
@@ -37,11 +47,20 @@ class Controller(mission_planner.MissionPlanner):
                 break
             await asyncio.sleep(0.1)
         logging.info("Running preflight checklist...")
+        n_tries = 0
         async for health_all_ok in self.drone.telemetry.health_all_ok():
+            if n_tries == 5:
+                raise ControlError("Preflight check maximum tries exceeded")
             if health_all_ok:
                 logging.info("Preflight checklist complete")
                 break
-            await asyncio.sleep(0.1)
+            else:
+                logging.info(f"Preflight check failed {n_tries}/5")
+                async for health in self.drone.telemetry.health():
+                    logging.debug(str(health).replace(' [', '\n\t').replace(', ', '\n\t').replace(']', ''))
+                    break
+                n_tries += 1
+                await asyncio.sleep(5)
         logging.info("Setting mission params")
         await self.drone.action.set_takeoff_altitude(5)
         await self.drone.action.set_return_to_launch_altitude(20)
@@ -80,7 +99,7 @@ class Controller(mission_planner.MissionPlanner):
         command = sys.stdin.readline().rstrip()
         if command == "rtb":
             raise ControlError("Received RTB command input")
-        return self.command_parser.handle_command(command)
+        return self.parser.handle_command(command)
 
     async def monitor_telem(self):
         logging.info("Monitoring State")
@@ -132,7 +151,7 @@ class Controller(mission_planner.MissionPlanner):
         while not self.abort_event.is_set():
             mode, *args = await self.command_queue.get()
             logging.debug(f"Interpreting {mode, *args}")
-            cmd_coro = self.fetch_command_coro(mode, *args)
+            cmd_coro = self.mission_planner.fetch_command_coro(mode, *args)
             asyncio.create_task(cmd_coro)
 
     async def fly_rtb(self):
@@ -195,7 +214,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
-    parser.add_argument('-c', '--call_sign', default="CityAirbus1234",
+    parser.add_argument('-c', '--call_sign', default="cityairbus1234",
                         help="Set custom call sign")
     parser.add_argument('-s', '--serial', default="udp://:14550",
                         help="Set system address for drone serial port connection")
