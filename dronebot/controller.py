@@ -6,9 +6,9 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from mavsdk import System, telemetry, action, mission
-from dronebot.mission_planner import MissionPlanner
-from dronebot.stdin_parser import Parser
-from dronebot.voice_response import TTS
+from dronebot.planner import MissionPlanner
+from dronebot.parser import Parser
+from dronebot.voice import TTS
 from dronebot import config_logging
 
 class ControlError(Exception):

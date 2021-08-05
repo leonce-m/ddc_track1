@@ -12,7 +12,7 @@ class Vocabulary:
     """
 
     def __init__(self):
-        with open((Path(__file__).parent / 'vocabulary.yaml').resolve()) as file:
+        with open((Path(__file__).parent / 'vocab.yaml').resolve()) as file:
             vocab = yaml.load(file, Loader=yaml.FullLoader)
 
         setattr(self, 'MODE', IntEnum('MODE', vocab.get('MODES')))

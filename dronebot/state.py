@@ -1,5 +1,5 @@
 from transitions import Machine, MachineError
-from dronebot.vocabulary import Vocabulary
+from dronebot.vocab import Vocabulary
 import logging
 
 logger = logging.getLogger(__name__)

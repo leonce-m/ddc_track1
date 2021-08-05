@@ -5,7 +5,7 @@ import traceback
 
 import utm
 from mavsdk import System, telemetry, action, mission
-from dronebot.vocabulary import Vocabulary
+from dronebot.vocab import Vocabulary
 
 class MissionPlanner:
     """

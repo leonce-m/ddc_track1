@@ -3,8 +3,8 @@ import re
 
 from text_to_num import alpha2digit
 from dronebot import config_logging
-from dronebot.vocabulary import Vocabulary
-from dronebot.state_machine import FlightState
+from dronebot.vocab import Vocabulary
+from dronebot.state import FlightState
 
 
 class CommunicationError(Exception):
@@ -109,7 +109,7 @@ class Parser(object):
 
 if __name__ == '__main__':
     import argparse
-    from dronebot.voice_response import TTS
+    from dronebot.voice import TTS
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
     parser.add_argument('-c', '--call_sign', default="cityairbus1234",
                         help="Set custom call sign")
