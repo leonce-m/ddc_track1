@@ -1,4 +1,4 @@
-MODES: ['ALTITUDE', 'HEADING', 'POSITION', 'REPORT', 'CONTACT', 'IGNORE', 'CLEARANCE', 'TAKEOFF', 'LAND']
+MODES: ['ALTITUDE', 'HEADING', 'POSITION', 'CLEARANCE', 'CONTACT', 'CONDITION', 'REPORT', 'IGNORE', 'TAKEOFF', 'LAND']
 
 VERBS:
     ALTITUDE:  ['climb', 'descend', 'maintain']
@@ -6,6 +6,7 @@ VERBS:
     POSITION:  ['hold', 'direct']
     CLEARANCE: ['clear', 'cleared']
     CONTACT:   ['contact']
+    CONDITION: ['when']
     REPORT:    ['report']
     IGNORE:    ['readback', 'wind', 'radar', 'expect']
 
@@ -16,7 +17,8 @@ NOUNS:
     CLEARANCE: ['to (?P<type>land) runway (?P<val>\d+) (?P<unit>right|left)',
                 'for (?P<type>takeoff)',
                 'for the standard (?P<type>ils) runway (?P<val>\d+) (?P<unit>right|left)',
-                'to (?P<val>[\w ]+) via (?P<type>flight planned route)']
+                'to (?P<val>[\w ]+) via flight planned (?P<type>route)']
+    CONDITION: ['reaching (?P<val>[\w ]+)']
     REPORT:    ['ready for (?P<val>departure)']
 
 POSITIONS:

@@ -1,10 +1,36 @@
-from threading import Thread
-import queue
 import logging
+import queue
 import pyttsx3
+import asyncio
+from threading import Thread
+from concurrent.futures import ThreadPoolExecutor
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = logging.getLogger(__name__.upper())
+
+
+class Voice:
+    atc = ""
+    tts = None
+    tp_exec = None
+
+    def __init__(self, *, atc=None):
+        if atc:
+            Voice.atc = atc
+        if not self.tts:
+            Voice.tts = TTS()
+        if not self.tp_exec:
+            Voice.tp_exec = ThreadPoolExecutor()
+        self.phrases = list()
+
+    async def speak(self, quick_phrase="", *, full=False):
+        self.phrases.append(quick_phrase) if quick_phrase else None
+        if len(self.phrases) > 0 or full:
+            sentence = (f"{self.atc.capitalize()}, " if full else "")
+            sentence += (f"{', '.join(self.phrases)}, " if len(self.phrases) > 0 else "")
+            sentence += "Cityairbus one two three four."
+            await asyncio.get_event_loop().run_in_executor(self.tp_exec, self.tts.respond, sentence.capitalize())
+            self.phrases.clear()
+
 
 class TTS(Thread):
     def __init__(self):
@@ -29,5 +55,5 @@ class TTS(Thread):
         tts_engine.endLoop()
 
     def respond(self, utterance):
-        logger.info(f"Respond: {utterance}")
+        logger.info(f"Respond: '{utterance}'")
         self.queue.put(utterance)

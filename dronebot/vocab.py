@@ -20,36 +20,34 @@ class Vocabulary:
         setattr(self, 'NOUNS', dict((self.MODE[key], set(val)) for key, val in vocab.get('NOUNS').items()))
         setattr(self, 'POSITIONS', dict((key, telemetry.Position(*val)) for key, val in vocab.get('POSITIONS').items()))
 
-    def get_arg(self, pattern, phrase, mode):
+    def get_kwargs(self, pattern, phrase, mode):
         match = re.search(pattern, phrase)
         if match:
-            args = match.group(0)
+            command = {'match': match.group(0), 'phrase': phrase, 'mode': mode}
             if mode == self.MODE.ALTITUDE:
                 val = match.group('val')
                 unit = match.group('unit')
                 if unit == "flightlevel":
-                    args = float(val) * 30.48 * 0.01
+                    command[str(mode)] = float(val) * 30.48 * 0.01
                 elif unit == "ft":
-                    args = float(val) * 0.3048 * 0.01
+                    command[str(mode)] = float(val) * 0.3048 * 0.01
             if mode == self.MODE.HEADING:
-                val = match.group('val')
-                args = int(val)
+                command[str(mode)] = int(match.group('val'))
             if mode == self.MODE.POSITION:
-                args = self.POSITIONS.get(args)
+                command[str(mode)] = self.POSITIONS.get(command['match'])
             if mode == self.MODE.CLEARANCE:
-                clearance = match.group('type')
-                if clearance == 'takeoff':
-                    args = (clearance, None)
-                if clearance == 'flight planned route':
-                    args = (clearance, match.group('val'))
-                if clearance == 'ils':
-                    args = ' '.join([match.group('val'), match.group('unit')])
-                    args = (clearance, self.POSITIONS.get(args))
-                if clearance == 'land':
-                    args = ' '.join([match.group('val'), match.group('unit')])
-                    args = (clearance, self.POSITIONS.get(args))
+                clearance = {'type': match.group('type')}
+                if clearance['type'] == 'route':
+                    clearance['route'] = None
+                    # TODO: add loading flight plan from vocab.yaml
+                if clearance['type'] in ['ils', 'land']:
+                    clearance['description'] = ' '.join([match.group('val'), match.group('unit')])
+                    clearance['position'] = self.POSITIONS.get(clearance['description'])
+                command[str(mode)] = clearance
             if mode == self.MODE.CONTACT:
-                args = match.group('val')
+                command[str(mode)] = match.group('val')
+            if mode == self.MODE.CONDITION:
+                command[str(mode)] = self.POSITIONS.get(match.group('val'))
             if mode == self.MODE.REPORT:
-                args = match.group('val')
-            return args
+                command[str(mode)] = match.group('val')
+            return command

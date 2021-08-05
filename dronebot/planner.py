@@ -7,6 +7,8 @@ import utm
 from mavsdk import System, telemetry, action, mission
 from dronebot.vocab import Vocabulary
 
+logger = logging.getLogger(__name__.upper())
+
 class MissionPlanner:
     """
     Provides mavsdk coroutines based on parsed command input.
@@ -24,8 +26,8 @@ class MissionPlanner:
         try:
             await action_coro()
         except error as e:
-            logging.error(e)
-            logging.debug(traceback.format_exc())
+            logger.error(e)
+            logger.debug(traceback.format_exc())
         await asyncio.sleep(0.1)
 
     def fetch_command_coro(self, mode, *args):
@@ -49,17 +51,17 @@ class MissionPlanner:
     async def upload_and_start(self, mission_plan):
         await self.drone.mission.clear_mission()
         await self.drone.mission.upload_mission(mission_plan)
-        logging.debug("Mission:" + "".join(map(
+        logger.debug("Mission:" + "".join(map(
             lambda item: f"\n\t{item.latitude_deg}, {item.longitude_deg}, {item.relative_altitude_m}",
             mission_plan.mission_items)))
         async for mission_progress in self.drone.mission.mission_progress():
-            logging.debug(mission_progress)
+            logger.debug(mission_progress)
             break
         await self.try_action(self.drone.mission.start_mission, mission.MissionError)
         await asyncio.sleep(0.1)
 
     async def mission_change_altitude(self, target_alt: float):
-        logging.info(f"Change target altitude to {target_alt}m ASL")
+        logger.info(f"Change target altitude to {target_alt}m ASL")
         self.target_alt = target_alt
         if self.mission_plan is not None:
             items = list()
@@ -82,7 +84,7 @@ class MissionPlanner:
         await self.upload_and_start(self.mission_plan)
 
     async def mission_fly_heading(self, heading: int):
-        logging.info(f"Turning to {heading}")
+        logger.info(f"Turning to {heading}")
         pos_gps = await self.get_position()
         pos_utm = utm.from_latlon(pos_gps.latitude_deg, pos_gps.longitude_deg)
         tgt_utm = (pos_utm[0] + math.sin(math.radians(heading)) * 5, pos_utm[1] + math.cos(math.radians(heading)) * 5)
@@ -97,7 +99,7 @@ class MissionPlanner:
         await self.upload_and_start(self.mission_plan)
 
     async def mission_fly_direct(self, position: telemetry.Position):
-        logging.info(f"Set enroute towards {position.latitude_deg}, {position.longitude_deg}")
+        logger.info(f"Set enroute towards {position.latitude_deg}, {position.longitude_deg}")
         pos_gps = await self.get_position()
         items = [mission.MissionItem(
             position.latitude_deg, position.longitude_deg, self.target_alt,
@@ -109,17 +111,17 @@ class MissionPlanner:
         await self.upload_and_start(self.mission_plan)
 
     async def command_takeoff(self):
-        logging.info("Arming drone")
+        logger.info("Arming drone")
         await self.try_action(self.drone.action.arm, action.ActionError)
         await asyncio.wait_for(self.is_armed(), timeout=10)
-        logging.info("Taking off")
+        logger.info("Taking off")
         await self.try_action(self.drone.action.takeoff, action.ActionError)
         await asyncio.sleep(5)
         await asyncio.wait_for(self.is_airborne(), timeout=10)
         await asyncio.sleep(1)
 
     async def command_landing(self, position=None):
-        logging.info(f"Inbound for landing at {position.latitude_deg}, {position.longitude_deg}")
+        logger.info(f"Inbound for landing at {position.latitude_deg}, {position.longitude_deg}")
         await asyncio.sleep(0.1)
         if position is not None:
             items = [
@@ -138,16 +140,16 @@ class MissionPlanner:
             await self.upload_and_start(self.mission_plan)
             async for progress in self.drone.mission.mission_progress():
                 if progress:
-                    logging.debug(progress)
+                    logger.debug(progress)
                     break
                 await asyncio.sleep(0.1)
             await self.drone.mission.is_mission_finished()
         await asyncio.sleep(5)
-        logging.info(f"Starting final descent")
+        logger.info(f"Starting final descent")
         await self.try_action(self.drone.action.land, action.ActionError)
         await asyncio.wait_for(self.is_landed(), timeout=30)
         await asyncio.sleep(1)
-        logging.info("Disarming drone")
+        logger.info("Disarming drone")
         await self.try_action(self.drone.action.disarm, action.ActionError)
         await asyncio.wait_for(self.is_disarmed(), timeout=10)
         await asyncio.sleep(1)
@@ -155,28 +157,28 @@ class MissionPlanner:
     async def is_armed(self):
         async for armed in self.drone.telemetry.armed():
             if armed:
-                logging.info("Arming successful")
+                logger.info("Arming successful")
                 return True
             await asyncio.sleep(0.1)
 
     async def is_disarmed(self):
         async for armed in self.drone.telemetry.armed():
             if not armed:
-                logging.info("Disarming successful")
+                logger.info("Disarming successful")
                 return True
             await asyncio.sleep(0.1)
-            logging.debug("Waiting...")
+            logger.debug("Waiting...")
 
     async def is_airborne(self):
         async for in_air in self.drone.telemetry.in_air():
             if in_air:
-                logging.info("Takeoff successful")
+                logger.info("Takeoff successful")
                 return True
             await asyncio.sleep(0.1)
 
     async def is_landed(self):
         async for landed_state in self.drone.telemetry.landed_state():
             if landed_state == telemetry.LandedState.ON_GROUND:
-                logging.info("Landing successful")
+                logger.info("Landing successful")
                 return True
             await asyncio.sleep(0.1)
