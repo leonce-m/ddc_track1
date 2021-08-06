@@ -140,11 +140,10 @@ class Controller:
         logger.info("Attempt to land at nearest location")
         await self.drone.action.return_to_launch()
         logger.info("Returning Home")
-        await self.telemetry.is_landed()
+        await self.telemetry.wait_for_landed()
         logger.info("Landed")
-        await asyncio.sleep(1)
-        logger.info("Disarming drone")
         await self.drone.action.disarm()
+        logger.info("Disarmed")
 
     def handle_exception(self, loop, context):
         msg = context.get("exception", context["message"])
