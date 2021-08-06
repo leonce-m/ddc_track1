@@ -99,14 +99,11 @@ class Controller:
             asyncio.create_task(self.shutdown(asyncio.get_running_loop()))
 
     async def monitor_atc(self):
-        await self.flight_state.voice.speak(full=True)
-        await asyncio.sleep(1)
-        await self.flight_state.voice.speak("request IFR clearance")
         logger.info("Monitoring ATC")
+        await self.flight_state.voice.speak(full=True)
         while not self.abort_event.is_set():
             command_list = await asyncio.get_event_loop().run_in_executor(self.tp_executor, self.handle_stdin)
             await self.flight_state.handle_commands(command_list)
-            await self.flight_state.voice.speak()
 
     def handle_stdin(self):
         command = sys.stdin.readline().rstrip()

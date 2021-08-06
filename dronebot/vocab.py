@@ -28,9 +28,9 @@ class Vocabulary:
             if mode == self.MODE.ALTITUDE:
                 val = match.group('val')
                 unit = match.group('unit')
-                if unit == "flightlevel":
+                if unit in ["flightlevel", "flight level"]:
                     command[str(mode)] = float(val) * 30.48 * 0.01
-                elif unit == "ft":
+                elif unit == "feet":
                     command[str(mode)] = float(val) * 0.3048 * 0.01
             if mode == self.MODE.HEADING:
                 command[str(mode)] = int(match.group('val'))
