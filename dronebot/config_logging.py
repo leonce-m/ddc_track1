@@ -1,8 +1,9 @@
 import logging
-import sys
 import os
-import time
 import pkgutil
+import sys
+import time
+
 
 def config_logging_stdout(level, full=False):
     if full:

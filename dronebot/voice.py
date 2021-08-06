@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import queue
-import pyttsx3
-import asyncio
-from threading import Thread
 from concurrent.futures import ThreadPoolExecutor
+from threading import Thread
+
+import pyttsx3
 
 logger = logging.getLogger(__name__.upper())
 

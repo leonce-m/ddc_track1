@@ -1,7 +1,7 @@
-import logging
 import asyncio
-from mavsdk import System, telemetry
+import logging
 
+from mavsdk import System, telemetry
 
 logger = logging.getLogger(__name__.upper())
 

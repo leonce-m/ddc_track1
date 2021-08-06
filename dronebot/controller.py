@@ -6,11 +6,11 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 
 from mavsdk import System, telemetry, action, mission
+
+from dronebot import config_logging
 from dronebot.parser import Parser
 from dronebot.state import FlightState
 from dronebot.telem import Telemetry
-from dronebot import config_logging
-
 
 logger = logging.getLogger(__name__.upper())
 

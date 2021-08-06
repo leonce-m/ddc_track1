@@ -1,9 +1,10 @@
-import re
 import logging
+import re
+
 from text_to_num import alpha2digit
+
 from dronebot import config_logging
 from dronebot.vocab import Vocabulary
-from dronebot.state import FlightState
 
 logger = logging.getLogger(__name__.upper())
 
@@ -31,6 +32,7 @@ class Parser(object):
             for r in self.vocab.VERBS.get(mode):
                 match = re.search(r, phrase)
                 if match:
+                    # logger.debug(match)
                     return match.start(), match.end(), r, mode
         return 0, 0, 0, 0
 
@@ -60,7 +62,7 @@ class Parser(object):
         j1, _, verb2, _ = self.find_next_verb(phrase[i2:])
         if not verb2:
             j1 = len(phrase)
-        self.handle_phrase(phrase[i1:j1], mode)
+        self.handle_phrase(phrase[i1:i2+j1], mode)
         self.handle_phrase_queue(phrase[j1:])
 
     def handle_id(self, cmd_string):
@@ -76,15 +78,10 @@ class Parser(object):
         self.command_list.clear()
         try:
             self.handle_id(cmd_string)
+            self.handle_phrase_queue(cmd_string)
         except CommunicationError as e:
             logger.error(e)
-        else:
-            try:
-                self.handle_phrase_queue(cmd_string)
-            except CommunicationError as e:
-                logger.error(e)
-                self.command_list.append(None)
-        logger.debug(self.command_list)
+            self.command_list.append(None)
         return self.command_list
 
 

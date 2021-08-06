@@ -1,13 +1,14 @@
-import time
-import logging
-import traceback
 import asyncio
+import logging
 import math
-import numpy as np
-
-import utm
-from mavsdk import System, telemetry, action, mission
+import time
+import traceback
 from abc import abstractmethod, ABCMeta
+
+import numpy as np
+import utm
+from mavsdk import System, action, mission
+
 from dronebot.telem import Telemetry
 
 logger = logging.getLogger(__name__.upper())

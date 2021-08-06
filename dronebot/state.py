@@ -1,13 +1,16 @@
 import logging
-import traceback
 import pickle
+import traceback
 from pathlib import Path
 from typing import List, Dict, Any
-from transitions.extensions.asyncio import AsyncMachine
+
+from mavsdk import telemetry
 from transitions import MachineError
+from transitions.extensions.asyncio import AsyncMachine
+
+from dronebot import command as cmd
 from dronebot.vocab import Vocabulary
 from dronebot.voice import Voice
-from dronebot import command as cmd
 
 logger = logging.getLogger(__name__.upper())
 

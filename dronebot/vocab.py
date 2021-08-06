@@ -1,9 +1,10 @@
 import re
 from enum import IntEnum
 from pathlib import Path
-import yaml
 
+import yaml
 from mavsdk import telemetry
+
 
 class Vocabulary:
     """
