@@ -60,7 +60,7 @@ class MoveCommand(BaseCommand, metaclass=ABCMeta):
         await asyncio.sleep(0.1)
 
     def __str__(self):
-        return f"{self.__class__.__name__} command @{self.time_stamp} "
+        return f"{self.__class__.__name__} Command"
 
 
 class Altitude(MoveCommand):
@@ -126,11 +126,16 @@ class Direct(MoveCommand):
         await self.upload_and_start(drone, mission.MissionPlan(items))
 
 class Takeoff(MoveCommand):
-    def __init__(self):
+    def __init__(self, *, altitude=None):
         super().__init__()
+        self.altitude = altitude
 
     async def __call__(self, drone, telem):
-        await self.try_action(drone.action.arm, action.ActionError)
+        if self.altitude:
+            MoveCommand.altitude = self.altitude
+            await drone.action.set_takeoff_altitude(self.altitude)
+        if not telem.is_armed:
+            await self.try_action(drone.action.arm, action.ActionError)
         await asyncio.wait_for(telem.wait_for_armed(), timeout=10)
         await self.try_action(drone.action.takeoff, action.ActionError)
         await asyncio.sleep(5)
@@ -207,11 +212,20 @@ class ReportAlt(ReportCommand):
     async def __call__(self, drone, telem):
         logger.debug(f"{self.task} waiting to reach {self.altitude}m")
         while abs(self.altitude - telem.altitude) > self.min_diff:
-            logger.debug(telem.altitude)
+            # logger.debug(telem.altitude)
             await asyncio.sleep(1)
         logger.debug(self)
         await self.task
 
+class ReportTakeoff(ReportCommand):
+    def __init__(self, *, task):
+        super().__init__(task=task)
+
+    async def __call__(self, drone, telem):
+        logger.debug(f"{self.task} waiting for takeoff state")
+        await telem.wait_for_in_air()
+        logger.debug(self)
+        await self.task
 
 class ReportLanded(ReportCommand):
     def __init__(self, *, task):
@@ -222,3 +236,27 @@ class ReportLanded(ReportCommand):
         await telem.wait_for_landed(1)
         logger.debug(self)
         await self.task
+
+
+class EngineStart(BaseCommand):
+    def __init__(self):
+        super().__init__()
+
+    async def __call__(self, drone, telem):
+        logger.info("Engine Start (Armed)")
+        await self.try_action(drone.action.arm, action.ActionError)
+
+    def __str__(self):
+        return f"{self.__class__.__name__} Command"
+
+
+class EngineShutdown(BaseCommand):
+    def __init__(self):
+        super().__init__()
+
+    async def __call__(self, drone, telem):
+        logger.info("Engine Shutdown (Disarmed)")
+        await self.try_action(drone.action.disarm, action.ActionError)
+
+    def __str__(self):
+        return f"{self.__class__.__name__} Command"
