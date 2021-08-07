@@ -162,7 +162,7 @@ def main(ARGS):
         ARGS.model = os.path.join(model_dir, 'output_graph.pb')
         ARGS.scorer = os.path.join(model_dir, ARGS.scorer)
 
-    print('Initializing model...')
+    # print('Initializing model...')
     logging.info("ARGS.model: %s", ARGS.model)
     model = deepspeech.Model(ARGS.model)
     if ARGS.scorer:
@@ -174,7 +174,7 @@ def main(ARGS):
                          device=ARGS.device,
                          input_rate=ARGS.rate,
                          file=ARGS.file)
-    print("Listening (ctrl-C to exit)...")
+    # print("Listening (ctrl-C to exit)...")
     frames = vad_audio.vad_collector()
 
     # Stream from microphone to DeepSpeech using VAD
@@ -196,7 +196,7 @@ def main(ARGS):
                 vad_audio.write_wav(os.path.join(ARGS.savewav, datetime.now().strftime("savewav_%Y-%m-%d_%H-%M-%S_%f.wav")), wav_data)
                 wav_data = bytearray()
             text = stream_context.finishStream()
-            print("Recognized: %s" % text)
+            print(text)
             if ARGS.keyboard:
                 from pyautogui import typewrite
                 typewrite(text)

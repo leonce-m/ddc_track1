@@ -191,7 +191,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
-    parser.add_argument('-c', '--call_sign', default="cityairbus1234",
+    parser.add_argument('-c', '--call_sign', default="cityairbus",
                         help="Set custom call sign")
     parser.add_argument('-s', '--serial', default="udp://:14550",
                         help="Set system address for drone serial port connection")

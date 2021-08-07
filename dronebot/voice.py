@@ -28,7 +28,7 @@ class Voice:
         if len(self.phrases) > 0 or full:
             sentence = (f"{self.atc.capitalize()}, " if full else "")
             sentence += (f"{', '.join(self.phrases)}, " if len(self.phrases) > 0 else "")
-            sentence += "Cityairbus one two three four."
+            sentence += "Cityairbus alpha india romeo one."
             await asyncio.get_event_loop().run_in_executor(self.tp_exec, self.tts.respond, sentence.capitalize())
             self.phrases.clear()
 

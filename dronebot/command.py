@@ -134,12 +134,11 @@ class Takeoff(MoveCommand):
         if self.altitude:
             MoveCommand.altitude = self.altitude
             await drone.action.set_takeoff_altitude(self.altitude)
-        if not telem.is_armed:
+        while not telem.is_armed:
             await self.try_action(drone.action.arm, action.ActionError)
-        await asyncio.wait_for(telem.wait_for_armed(), timeout=10)
-        await self.try_action(drone.action.takeoff, action.ActionError)
-        await asyncio.sleep(5)
-        await asyncio.wait_for(telem.wait_for_in_air(), timeout=10)
+        await telem.wait_for_armed()
+        while not telem.in_air:
+            await self.try_action(drone.action.takeoff, action.ActionError)
 
 class Land(MoveCommand):
     def __init__(self, *, position):
@@ -257,6 +256,16 @@ class EngineShutdown(BaseCommand):
     async def __call__(self, drone, telem):
         logger.info("Engine Shutdown (Disarmed)")
         await self.try_action(drone.action.disarm, action.ActionError)
+
+    def __str__(self):
+        return f"{self.__class__.__name__} Command"
+
+class Freestyle(BaseCommand):
+    def __init__(self):
+        super().__init__()
+
+    async def __call__(self, drone, telem):
+        logger.info("Doing a trick")
 
     def __str__(self):
         return f"{self.__class__.__name__} Command"

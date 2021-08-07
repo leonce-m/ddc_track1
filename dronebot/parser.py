@@ -67,28 +67,31 @@ class Parser(object):
 
     def handle_id(self, cmd_string):
         cmd_string = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(cmd_string, "en", True))
-        token = cmd_string.split()
-        if len(token) > 1 and token[1].isdigit():
-            token[0] += token[1]
-            token.remove(token[1])
-        if token[0] != self.call_sign:
-            raise CommunicationError(f"Call sign '{token[0]}' not recognized")
+        match = re.match(r'(city airbus)|(cityairbus)', cmd_string)
+        if match:
+            logger.debug(match.group(0))
+        else:
+            logger.debug(cmd_string)
+            raise CommunicationError(f"Call sign not recognized")
 
     def handle_command(self, cmd_string):
         self.command_list.clear()
         try:
             self.handle_id(cmd_string)
-            self.handle_phrase_queue(cmd_string)
+            try:
+                self.handle_phrase_queue(cmd_string)
+            except CommunicationError as e:
+                logger.error(e)
+                self.command_list.append(None)
         except CommunicationError as e:
-            logger.error(e)
-            self.command_list.append(None)
+            logger.warning(e)
         return self.command_list
 
 
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Control PIXHAWK via MavSDK-Python with ATC commands (and respond)")
-    parser.add_argument('-c', '--call_sign', default="cityairbus1234",
+    parser.add_argument('-c', '--call_sign', default="city airbus",
                         help="Set custom call sign")
     ARGS = parser.parse_args()
     config_logging.config_logging_stdout(logging.DEBUG, __name__)
