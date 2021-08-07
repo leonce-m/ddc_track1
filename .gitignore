@@ -1,4 +1,8 @@
-deepspeech
 venv
+deepspeech
+training
+saves
+logs
 .idea
 .pyc
+.log

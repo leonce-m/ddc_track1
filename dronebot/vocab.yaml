@@ -1,0 +1,32 @@
+MODES: ['CLEARANCE', 'CONDITION', 'ALTITUDE', 'HEADING', 'POSITION', 'CONTACT', 'REPORT', 'IGNORE', 'TAKEOFF', 'LAND']
+
+VERBS:
+    CLEARANCE: ['clear', 'cleared']
+    CONDITION: ['when']
+    ALTITUDE:  ['climb', 'descend', 'maintain']
+    HEADING:   ['turn']
+    POSITION:  ['hold', 'direct']
+    CONTACT:   ['contact']
+    REPORT:    ['report']
+    IGNORE:    ['readback', 'wind', 'radar', 'expect']
+
+NOUNS:
+    CLEARANCE: ['to (?P<type>land) runway (?P<val>\d+) (?P<unit>right|left)',
+                'for (?P<type>takeoff)',
+                'for the standard (?P<type>ils) runway (?P<val>\d+) (?P<unit>right|left)',
+                'to (?P<val>[\w ]+) via flight planned (?P<type>route)',
+                'to (?P<val>shutdown)']
+    CONDITION: ['reaching (?P<val>[\w ]+)']
+    ALTITUDE:  ['(?P<unit>flight level) (?P<val>\d+)', '(?P<unit>flightlevel) (?P<val>\d+)', '(?P<val>\d+) (?P<unit>feet)']
+    HEADING:   ['heading (?P<val>\d+)']
+    POSITION:  ['ingolstadt main station', 'miq', 'ott vor', 'wld vor']
+    REPORT:    ['ready for (?P<val>departure)']
+
+POSITIONS:
+    ingolstadt main station: [48.688433, 11.525667, 377, 0]
+    miq: [48.688383, 11.525417, 377, 0]
+    ott vor: [48.688600, 11.525283, 377, 0]
+    wld vor: [48.688667, 11.525567, 377, 0]
+    26 right: [48.688583, 11.525567, 372, 0]
+    26 left: [48.688583, 11.525667, 372, 0]
+    echo delta mike alpha: [0, 0, 372, 0]

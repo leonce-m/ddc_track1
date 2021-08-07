@@ -2,9 +2,11 @@ import logging
 import re
 
 from text_to_num import alpha2digit
+
 from dronebot import config_logging
-from dronebot.vocabulary import Vocabulary
-from dronebot.voice_response import TTS
+from dronebot.vocab import Vocabulary
+
+logger = logging.getLogger(__name__.upper())
 
 class CommunicationError(Exception):
     def __init__(self, message):
@@ -23,8 +25,6 @@ class Parser(object):
     def __init__(self, call_sign):
         self.call_sign = call_sign
         self.vocab = Vocabulary()
-        self.tts = TTS()
-        self.response = ""
         self.command_list = list()
 
     def find_next_verb(self, phrase):
@@ -32,51 +32,37 @@ class Parser(object):
             for r in self.vocab.VERBS.get(mode):
                 match = re.search(r, phrase)
                 if match:
+                    # logger.debug(match)
                     return match.start(), match.end(), r, mode
         return 0, 0, 0, 0
 
-    def handle_response(self, phrase, mode=None):
-        # TODO: implement proper response decision tree
-        if mode:
-            pass
-        self.response += " " + phrase
-
-    def handle_response_queue(self):
-        if len(self.response) > 0:
-            sentence = f"{self.response.strip().capitalize()}, {self.call_sign}."
-            logging.info("Response: " + sentence)
-            self.tts.respond(sentence)
-        else:
-            logging.info(f"Response: {self.call_sign}.")
-            self.tts.respond(self.call_sign)
-        self.response = ""
-
     def handle_phrase(self, phrase, mode):
+        logger.debug(f"Handle phrase '{phrase}'")
         phrase = re.sub(r"(?<=\d)\s(?=\d)", "", alpha2digit(phrase, "en", True))
         found_match = False
         for pattern in self.vocab.NOUNS.get(mode, {""}):
             if pattern:
-                arg = self.vocab.get_arg(pattern, phrase, mode)
-                if arg:
-                    self.command_list.append((mode, arg))
+                kwargs = self.vocab.get_kwargs(pattern, phrase, mode)
+                if kwargs:
+                    self.command_list.append(kwargs)
                     found_match = True
             else:
-                logging.debug(f"Mode is without expected parameters")
-                self.command_list.append((mode, None))
+                logger.debug(f"Mode is without expected parameters")
+                kwargs = {'phrase': phrase, 'mode': mode}
+                self.command_list.append(kwargs)
         if not found_match:
-            logging.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
+            logger.debug(CommunicationError(f"Phrase '{phrase}' does not contain expected parameters"))
 
     def handle_phrase_queue(self, phrase):
         if len(phrase) == 0:
             return
-        i1, i2, verb1, mode1 = self.find_next_verb(phrase)
+        i1, i2, verb1, mode = self.find_next_verb(phrase)
         if not verb1:
             raise CommunicationError(f"Phrase '{phrase}' does not contain known command")
-        j1, _, verb2, mode2 = self.find_next_verb(phrase[i2:])
+        j1, _, verb2, _ = self.find_next_verb(phrase[i2:])
         if not verb2:
             j1 = len(phrase)
-        self.handle_phrase(phrase[i1:j1], mode1)
-        self.handle_response(phrase[i1:j1], mode1)
+        self.handle_phrase(phrase[i1:i2+j1], mode)
         self.handle_phrase_queue(phrase[j1:])
 
     def handle_id(self, cmd_string):
@@ -92,18 +78,10 @@ class Parser(object):
         self.command_list.clear()
         try:
             self.handle_id(cmd_string)
+            self.handle_phrase_queue(cmd_string)
         except CommunicationError as e:
-            logging.error(e)
-        else:
-            try:
-                self.handle_phrase_queue(cmd_string)
-            except CommunicationError as e:
-                logging.error(e)
-                self.handle_response("Say again")
-            except Exception:
-                raise
-            finally:
-                self.handle_response_queue()
+            logger.error(e)
+            self.command_list.append(None)
         return self.command_list
 
 
@@ -113,12 +91,11 @@ if __name__ == '__main__':
     parser.add_argument('-c', '--call_sign', default="cityairbus1234",
                         help="Set custom call sign")
     ARGS = parser.parse_args()
-
-    config_logging.config_logging_stdout(logging.DEBUG)
+    config_logging.config_logging_stdout(logging.DEBUG, __name__)
 
     vio = Parser(ARGS.call_sign)
     while True:
         command = input()
         if not command:
             break
-        logging.debug(vio.handle_command(command))
+        vio.handle_command(command)
